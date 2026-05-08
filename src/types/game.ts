@@ -30,6 +30,7 @@ export interface GameState {
   round: number;
   maxRounds: number;
   status: GameStatus;
+  turnPhase: 'discard' | 'draw';
   pretendJokerRank: Rank | null;
   history: string[];
 }

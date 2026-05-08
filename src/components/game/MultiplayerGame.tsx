@@ -19,7 +19,7 @@ import type { Card, GameState, Player, Rank } from '../../types/game';
 import Hand from './Hand';
 import CardUI from './CardUI';
 import { Button } from '../ui/button';
-import { Users, Copy, Check, LogOut, ArrowRight, RefreshCw, AlertTriangle, Trophy } from 'lucide-react';
+import { Users, Copy, Check, LogOut, ArrowRight, RefreshCw, AlertTriangle, Trophy, ArrowLeft } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSound } from '../../hooks/useSound';
 
@@ -104,7 +104,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
     const newHand = me.hand.filter((c: Card) => !selectedCardIds.includes(c.id));
     
     // Discard
-    const newOpenPile = [...cardsToDiscard, ...game.openPile];
+    let newOpenPile = [...cardsToDiscard, ...game.openPile];
     
     let drawnCard: Card;
     let newDeckCount = game.deckCount;
@@ -114,12 +114,13 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
        drawnCard = deck.pop()!;
        newDeckCount = Math.max(0, game.deckCount - 1);
     } else {
-       drawnCard = newOpenPile.shift()!;
+       // Pick what was there before discard
+       drawnCard = newOpenPile.splice(cardsToDiscard.length, 1)[0]!;
     }
 
-    newHand.push(drawnCard);
+    const finalHand = [...newHand, drawnCard];
     
-    await updatePlayerState(roomId, me.id, { hand: newHand });
+    await updatePlayerState(roomId, me.id, { hand: finalHand });
     await updateGameState(roomId, {
       openPile: newOpenPile,
       deckCount: newDeckCount,
@@ -151,25 +152,35 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
     });
   };
 
+  const pureGoldStyle = {
+    color: '#FFD700',
+    textShadow: '2px 2px 0px rgba(0,0,0,0.4), -1px -1px 0px rgba(255,255,255,0.1)'
+  };
+
+  const pureGoldIconStyle = {
+    color: '#FFD700',
+    filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.4))'
+  };
+
   if (isLobby) {
     return (
-      <div className="min-h-screen bg-brand-red flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-yellow/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-brand-red flex items-center justify-center p-6 relative overflow-y-auto">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-yellow/10 blur-[120px] rounded-full pointer-events-none fixed" />
         
-        <div className="max-w-md w-full z-10 bg-brand-maroon/60 backdrop-blur-xl border-4 border-brand-gold/10 rounded-[50px] shadow-2xl overflow-hidden">
+        <div className="max-w-md w-full z-10 bg-brand-maroon/60 backdrop-blur-xl border-4 border-brand-gold/10 rounded-[50px] shadow-2xl overflow-visible my-10">
           <div className="bg-brand-maroon p-10 text-brand-gold text-center border-b border-brand-gold/10">
              <div className="w-20 h-20 bg-brand-gold/5 border border-brand-gold/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
                 <Users size={32} className="text-brand-gold/60" />
              </div>
-             <h2 className="text-3xl font-display font-black mb-2 italic tracking-tight">GAME LOBBY</h2>
-             <p className="text-brand-gold/40 text-[10px] font-black uppercase tracking-widest">Waiting for players to join...</p>
+             <h2 style={pureGoldStyle} className="text-3xl font-display font-black mb-2 italic tracking-tight">GAME LOBBY</h2>
+             <p style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest opacity-60">Waiting for players to join...</p>
           </div>
           
           <div className="p-10 space-y-8">
              <div>
-                <label className="text-[10px] font-black text-brand-gold/40 uppercase tracking-widest mb-3 block text-center">Room ID / Duel Code</label>
+                <label style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest mb-3 block text-center opacity-60">Room ID / Duel Code</label>
                 <div className="flex bg-brand-maroon/80 border-2 border-brand-gold/10 rounded-2xl p-2 items-center">
-                   <div className="flex-1 text-center font-display text-4xl font-black text-brand-gold tracking-[0.2em]">{roomId}</div>
+                   <div style={pureGoldStyle} className="flex-1 text-center font-display text-4xl font-black tracking-[0.2em]">{roomId}</div>
                    <Button variant="ghost" onClick={copyRoomId} className="rounded-xl h-14 w-14 p-0 text-brand-gold/40 hover:text-brand-gold hover:bg-brand-gold/10">
                       {copied ? <Check size={24} /> : <Copy size={24} />}
                    </Button>
@@ -178,8 +189,8 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
 
              <div className="space-y-4">
                 <div className="flex justify-between items-center px-2">
-                   <label className="text-[10px] font-black text-brand-gold/40 uppercase tracking-widest">Active Challengers</label>
-                   <span className="text-brand-gold/60 font-bold text-sm">{players.length} / 4</span>
+                   <label style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest opacity-60">Active Challengers</label>
+                   <span style={pureGoldStyle} className="font-bold text-sm">{players.length} / 4</span>
                 </div>
                 <div className="space-y-2">
                    {players.map(p => (
@@ -188,7 +199,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
                             {p.name[0]}
                          </div>
                          <div className="flex-1">
-                            <span className="font-display font-medium text-brand-gold">{p.name} {p.id === auth.currentUser?.uid && "(You)"}</span>
+                            <span style={pureGoldStyle} className="font-display font-medium">{p.name} {p.id === auth.currentUser?.uid && "(You)"}</span>
                          </div>
                          {p.id === game?.hostId && (
                            <div className="px-3 py-1 bg-brand-gold text-brand-red rounded-lg text-[8px] font-black uppercase tracking-widest">
@@ -224,9 +235,9 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
   }
 
   return (
-    <div className="min-h-screen bg-brand-red text-brand-gold flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-brand-red text-brand-gold flex flex-col relative overflow-y-auto overflow-x-hidden no-scrollbar">
        {/* GOLDEN BORDER */}
-       <div className="absolute inset-0 border-[12px] border-brand-gold/10 pointer-events-none z-50 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.5)]" />
+       <div className="absolute inset-0 border-[12px] border-brand-gold/10 pointer-events-none z-50 fixed shadow-[inset_0_0_60px_rgba(0,0,0,0.5)]" />
 
        <div className="px-6 pt-10 pb-6 bg-black/40 backdrop-blur-xl flex justify-between items-start z-10 border-b border-brand-gold/5 shadow-2xl">
           <div className="flex items-start gap-4">
@@ -234,23 +245,24 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
                 <ArrowLeft size={24}/>
              </Button>
              
-             <div className="flex gap-4 overflow-x-auto no-scrollbar max-w-[320px] py-2">
+             <div className="flex gap-4 overflow-x-auto no-scrollbar max-w-[400px] py-2">
                 {players.map((p, idx) => (
                    <div key={p.id} className={cn(
-                     "flex flex-col items-center gap-1 transition-all duration-300 min-w-[80px]",
-                     game?.turn === idx ? "opacity-100 scale-110" : "opacity-40 scale-100"
+                     "flex items-center gap-3 transition-all duration-300 min-w-[120px] p-2 rounded-[24px]",
+                     game?.turn === idx ? "bg-brand-gold/10 scale-105" : "opacity-40 scale-100"
                    )}>
                       <div className={cn(
-                        "w-16 h-20 rounded-[28px] bg-brand-maroon border-2 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden",
+                        "w-12 h-14 rounded-[16px] bg-brand-maroon border-2 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden",
                         game?.turn === idx ? "border-brand-gold" : "border-brand-gold/10"
                       )}>
-                         <div className="absolute top-0 left-0 w-full h-1 bg-brand-gold/10" />
-                         <span className="text-xl font-display font-black text-brand-gold text-embossed">{p.score}</span>
-                         <span className="text-[7px] font-black uppercase text-brand-gold/40 tracking-widest mt-0.5">SCORE</span>
+                         <span className="text-lg font-display font-black text-brand-gold text-embossed">{p.score}</span>
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-center truncate w-full text-embossed italic">
-                        {p.name}
-                      </span>
+                      <div className="flex flex-col">
+                        <span style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-[0.2em] truncate max-w-[80px] italic">
+                          {p.name}
+                        </span>
+                        <span style={pureGoldStyle} className="text-[7px] font-black uppercase tracking-[0.1em] opacity-60">SCORE</span>
+                      </div>
                    </div>
                 ))}
              </div>
@@ -258,7 +270,7 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
 
           <div className="flex-1 flex flex-col items-center">
              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-gold/40 mb-3 italic">Wild Card</span>
+                <span style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-[0.4em] mb-3 italic opacity-60">Wild Card</span>
                 <div className="relative">
                    <div className="absolute -inset-8 bg-brand-gold/10 blur-3xl rounded-full animate-pulse" />
                    <CardUI 
@@ -293,8 +305,8 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
 
           <div className="flex flex-col items-end gap-2">
              <div className="bg-brand-maroon/60 border-2 border-brand-gold/10 px-6 py-4 rounded-[32px] flex flex-col items-end shadow-2xl backdrop-blur-md">
-                <span className="text-[10px] font-black text-brand-gold/40 tracking-widest uppercase">Round</span>
-                <span className="text-3xl font-display font-black leading-none italic text-embossed">{game?.round}<span className="text-xs opacity-20 ml-1">/ {game?.maxRounds || 5}</span></span>
+                <span style={pureGoldStyle} className="text-[10px] font-black tracking-widest uppercase opacity-60">Round</span>
+                <span style={pureGoldStyle} className="text-3xl font-display font-black leading-none italic">{game?.round}<span className="text-xs opacity-40 ml-1">/ {game?.maxRounds || 5}</span></span>
              </div>
           </div>
        </div>
@@ -383,11 +395,12 @@ const MultiplayerGame: React.FC<MultiplayerGameProps> = ({ roomId, isHost, onBac
                <div className="flex gap-2">
                  {selectedCardIds.length > 0 && isMyTurn && (
                     <Button 
-                       onClick={() => {}} // Discard is triggered by drawing (which replaces selection)
-                       className="h-14 px-8 rounded-2xl bg-brand-gold text-brand-red hover:bg-brand-gold/90 font-black relative overflow-hidden group shadow-xl"
+                       onClick={() => handleDraw(true)}
+                       className="h-14 px-8 rounded-2xl bg-brand-gold text-brand-red hover:bg-brand-gold/90 font-black relative overflow-hidden group shadow-xl flex flex-col gap-0"
                     >
+                       <span className="leading-none text-[10px] uppercase tracking-widest">Discard</span>
+                       <span className="font-display text-lg leading-none tracking-tighter">& Draw</span>
                        <div className="absolute inset-x-0 bottom-0 h-1 bg-black/20 animate-pulse" />
-                       DISCARD
                     </Button>
                  )}
                </div>

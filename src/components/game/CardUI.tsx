@@ -36,83 +36,84 @@ const CardUI: React.FC<CardUIProps> = ({
   };
 
   const getColorClass = (suit?: string) => {
-    if (suit === 'hearts' || suit === 'diamonds') return 'text-red-700';
-    return 'text-slate-900';
+    if (suit === 'hearts' || suit === 'diamonds') return 'text-[#ff3b30]';
+    return 'text-black';
   };
 
   if (!faceUp) {
     return (
       <motion.div
-        whileHover={onClick ? { y: -10 } : {}}
+        whileHover={onClick ? { y: -5 } : {}}
         onClick={onClick}
         className={cn(
-          "relative border-2 border-brand-gold/30 rounded-xl shadow-2xl cursor-pointer overflow-hidden",
-          isSmall ? "w-14 h-20" : "w-24 h-36",
-          "bg-brand-maroon",
+          "relative rounded-xl cursor-pointer overflow-hidden transition-all",
+          isSmall ? "w-14 h-20 border-2" : "w-24 h-36 border-4",
+          "bg-linear-to-br from-[#1a0505] to-[#000000] border-[#d4af37]/20 shadow-[0_10px_20px_rgba(0,0,0,0.6)]",
           className
         )}
       >
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-          <div className="w-12 h-12 border border-brand-gold/20 rounded-full flex items-center justify-center">
-             <span className="text-brand-gold/40 font-display font-bold text-[8px] tracking-widest">FIVES</span>
-          </div>
-          <div className="grid grid-cols-2 gap-1 opacity-10">
-             <span className="text-brand-gold text-[8px]">♥</span>
-             <span className="text-brand-gold text-[8px]">♠</span>
-             <span className="text-brand-gold text-[8px]">♣</span>
-             <span className="text-brand-gold text-[8px]">♦</span>
-          </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+           <div className="bg-white/5 w-full h-full rounded-lg flex flex-col items-center justify-center border border-white/5">
+              <div className="opacity-20 flex flex-col items-center">
+                <span className="text-brand-gold text-[8px] font-black tracking-widest uppercase">Card Back</span>
+              </div>
+           </div>
         </div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
       </motion.div>
     );
   }
 
   return (
     <motion.div
-      whileHover={onClick ? { y: -10 } : {}}
+      whileHover={onClick ? { y: -5 } : {}}
       animate={selected ? { y: -20, scale: 1.05 } : { y: 0, scale: 1 }}
       onClick={onClick}
       className={cn(
-        "relative rounded-xl shadow-2xl cursor-pointer bg-white border-2 select-none overflow-hidden",
-        isSmall ? "w-14 h-20 p-1" : "w-24 h-36 p-2",
-        selected ? "border-brand-gold ring-4 ring-brand-gold/20" : "border-slate-200",
+        "relative rounded-xl cursor-pointer bg-white select-none overflow-hidden transition-all shadow-[0_10px_20px_rgba(0,0,0,0.4)]",
+        isSmall ? "w-14 h-20 p-1.5" : "w-24 h-36 p-2",
+        "border-[3px]",
+        selected ? "border-[#d4af37] ring-4 ring-[#d4af37]/30" : "border-slate-100",
         className
       )}
     >
       <div className={cn("flex flex-col h-full", getColorClass(card.suit))}>
-        <div className="flex justify-between items-start">
-          <span className={cn("font-bold leading-none selection:bg-transparent", isSmall ? "text-sm" : "text-xl")}>
-            {card.rank === 'Joker' ? '★' : card.rank}
+        {/* Top Left */}
+        <div className="flex flex-col items-start leading-none">
+          <span className={cn("font-bold", isSmall ? "text-lg" : "text-xl")} style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>
+             {card.rank === 'Joker' ? 'J' : card.rank}
           </span>
-          <span className={isSmall ? "text-xs" : "text-sm"}>{getSuitSymbol(card.suit)}</span>
+          <span className={cn("font-bold -mt-1", isSmall ? "text-xs" : "text-sm")}>{getSuitSymbol(card.suit)}</span>
         </div>
         
-        <div className="flex-1 flex items-center justify-center">
+        {/* Center */}
+        <div className="flex-1 flex flex-col items-center justify-center relative">
            {card.rank === 'Joker' ? (
-             <div className="text-brand-gold text-4xl drop-shadow-sm">★</div>
+             <div className="flex flex-col items-center">
+               <div className={cn("text-[#ff3b30] drop-shadow-sm font-black italic", isSmall ? "text-xl" : "text-3xl")}>JK</div>
+               <div className="bg-[#f5e4c3] px-2 py-0.5 rounded-full border border-[#d4af37]/40 shadow-sm mt-1">
+                  <span className="text-[#d4af37] text-[6px] font-black uppercase tracking-tight">JOKER</span>
+               </div>
+             </div>
            ) : (
-             <div className={cn("font-bold opacity-10 font-display", isSmall ? "text-2xl" : "text-6xl")}>
+             <div className={cn("font-bold drop-shadow-sm transition-all", isSmall ? "text-2xl" : "text-4xl")}>
                 {getSuitSymbol(card.suit)}
              </div>
            )}
+           
+           {card.isPretendJoker && card.rank !== 'Joker' && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f5e4c3] px-2 py-0.5 rounded-full border border-[#d4af37] shadow-sm">
+                 <span className="text-[#d4af37] text-[6px] font-black uppercase tracking-tight">JOKER</span>
+              </div>
+           )}
         </div>
 
-        <div className="flex justify-between items-end rotate-180">
-          <span className={cn("font-bold leading-none selection:bg-transparent", isSmall ? "text-sm" : "text-xl")}>
-             {card.rank === 'Joker' ? '★' : card.rank}
+        {/* Bottom Right */}
+        <div className="flex flex-col items-end leading-none rotate-180">
+          <span className={cn("font-bold", isSmall ? "text-lg" : "text-xl")}>
+             {card.rank === 'Joker' ? 'J' : card.rank}
           </span>
-          <span className={isSmall ? "text-xs" : "text-sm"}>{getSuitSymbol(card.suit)}</span>
+          <span className={cn("font-bold -mt-1", isSmall ? "text-xs" : "text-sm")}>{getSuitSymbol(card.suit)}</span>
         </div>
-
-        {isJoker && (
-           <div className={cn(
-             "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-gold text-brand-red font-black rounded-lg flex items-center justify-center px-2 py-0.5 shadow-lg",
-             isSmall ? "text-[6px]" : "text-[8px] tracking-widest"
-           )}>
-             WILD
-           </div>
-        )}
       </div>
     </motion.div>
   );

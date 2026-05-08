@@ -50,7 +50,7 @@ export default function App() {
   };
 
   return (
-    <div className="font-sans antialiased text-slate-900 overflow-x-hidden">
+    <div className="font-sans antialiased text-brand-gold min-h-screen bg-[#2a0404]">
       {view === 'home' && (
         <Home 
           onStartSinglePlayer={handleStartSinglePlayer}

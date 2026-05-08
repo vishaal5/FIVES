@@ -25,15 +25,25 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
     action();
   };
 
+  const pureGoldStyle = {
+    color: '#FFD700',
+    textShadow: '2px 2px 0px rgba(0,0,0,0.4), -1px -1px 0px rgba(255,255,255,0.1)'
+  };
+
+  const pureGoldIconStyle = {
+    color: '#FFD700',
+    filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.4))'
+  };
+
   return (
-    <div className="min-h-screen bg-brand-red flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-[#2a0404] flex flex-col items-center justify-center p-6 relative overflow-y-auto overflow-x-hidden">
       {/* Decorative corners */}
-      <div className="absolute inset-0 border-[10px] border-brand-gold/10 pointer-events-none" />
+      <div className="absolute inset-0 border-[10px] border-brand-gold/10 pointer-events-none fixed" />
       
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full z-10"
+        className="max-w-md w-full z-10 py-12"
       >
         <Button variant="ghost" onClick={() => handleAction(onBack)} className="mb-6 text-brand-gold/40 hover:text-brand-gold p-0 group">
           <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" /> <span className="text-[10px] font-black tracking-widest">BACK TO MENU</span>
@@ -42,8 +52,8 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
         {mode === 'selection' && (
           <div className="space-y-6 text-center">
             <div className="mb-12">
-               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-gold/40">Duel Mode</span>
-               <h2 className="text-5xl font-display font-black text-brand-gold tracking-tighter mt-2 italic uppercase">MULTIPLAYER</h2>
+               <span style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80">Duel Mode</span>
+               <h2 style={pureGoldStyle} className="text-5xl font-display font-black tracking-tighter mt-2 italic uppercase">MULTIPLAYER</h2>
             </div>
             
             <Button 
@@ -76,8 +86,8 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
                  <Plus size={120} className="text-brand-gold" />
               </div>
               
-              <h2 className="text-3xl font-display font-black text-brand-gold mb-2 italic">HOST GAME</h2>
-              <p className="text-brand-gold/40 text-[10px] font-black uppercase tracking-widest mb-10">SETUP YOUR DUEL LOBBY</p>
+              <h2 style={pureGoldStyle} className="text-3xl font-display font-black mb-2 italic">HOST GAME</h2>
+              <p style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest mb-10 opacity-60">SETUP YOUR DUEL LOBBY</p>
               
               <div className="space-y-10">
                 <div className="space-y-6">
@@ -119,8 +129,8 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
                  <Users size={120} className="text-brand-gold" />
               </div>
               
-              <h2 className="text-3xl font-display font-black text-brand-gold mb-2 italic">JOIN DUEL</h2>
-              <p className="text-brand-gold/40 text-[10px] font-black uppercase tracking-widest mb-10">ENTER THE DUELING CODE</p>
+              <h2 style={pureGoldStyle} className="text-3xl font-display font-black mb-2 italic">JOIN DUEL</h2>
+              <p style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest mb-10 opacity-60">ENTER THE DUELING CODE</p>
               
               <div className="space-y-10">
                 <div className="space-y-4">
