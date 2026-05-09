@@ -6,9 +6,8 @@
 import { useState } from 'react';
 import Home from './components/Home';
 import Tutorial from './components/Tutorial';
-import GameBoard from './components/game/GameBoard';
+import { GameBoard, MultiplayerGame } from './components/Game';
 import MultiplayerSetup from './components/MultiplayerSetup';
-import MultiplayerGame from './components/game/MultiplayerGame';
 import { GameState, Player } from './types/game';
 import { createRoom, joinRoom } from './services/multiplayerService';
 
@@ -17,6 +16,10 @@ type AppView = 'home' | 'game' | 'multiplayer_setup' | 'multiplayer_game';
 export default function App() {
   const [view, setView] = useState<AppView>('home');
   const [showTutorial, setShowTutorial] = useState(false);
+  const [isTutorialComplete, setIsTutorialComplete] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('fives_tutorial_complete') === 'true';
+  });
   const [gameSetup, setGameSetup] = useState<{ players: number, rounds: number, roomId?: string, isHost?: boolean, playerName?: string } | null>(null);
 
   const handleStartSinglePlayer = (players: number, rounds: number, playerName?: string) => {
@@ -49,10 +52,18 @@ export default function App() {
     setGameSetup(null);
   };
 
+  const handleStartInteractive = () => {
+    setShowTutorial(false);
+    setGameSetup({ players: 2, rounds: 1, playerName: 'Beginner' });
+    setView('game');
+    // We'll need to pass an isTutorial flag to GameBoard or use a side effect
+  };
+
   return (
     <div className="font-sans antialiased text-brand-gold min-h-screen bg-[#2a0404]">
       {view === 'home' && (
         <Home 
+          isTutorialComplete={isTutorialComplete}
           onStartSinglePlayer={handleStartSinglePlayer}
           onStartMultiplayer={handleStartMultiplayer}
           onShowTutorial={() => setShowTutorial(true)}
@@ -65,6 +76,7 @@ export default function App() {
           maxRounds={gameSetup.rounds} 
           playerName={gameSetup.playerName}
           onBack={handleBackToHome}
+          isTutorialMode={gameSetup.playerName === 'Beginner'} // Simple heuristic
         />
       )}
 
@@ -85,7 +97,13 @@ export default function App() {
       )}
 
       {showTutorial && (
-        <Tutorial onClose={() => setShowTutorial(false)} />
+        <Tutorial 
+          onClose={() => {
+            setShowTutorial(false);
+            setIsTutorialComplete(localStorage.getItem('fives_tutorial_complete') === 'true');
+          }} 
+          onStartInteractive={handleStartInteractive}
+        />
       )}
     </div>
   );

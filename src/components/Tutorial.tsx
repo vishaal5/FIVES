@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
-import { X, BookOpen, Zap, Play, ArrowLeft, RefreshCw } from 'lucide-react';
+import { X, BookOpen, Zap, Play, ArrowLeft, RefreshCw, Gamepad2, GraduationCap } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useSound } from '../hooks/useSound';
 
 interface TutorialProps {
   onClose: () => void;
+  onStartInteractive: () => void;
 }
 
-type TutorialView = 'path' | 'steps' | 'tips' | 'simulation';
+type TutorialView = 'path' | 'steps' | 'tips';
 
-const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
+const Tutorial: React.FC<TutorialProps> = ({ onClose, onStartInteractive }) => {
   const [view, setView] = useState<TutorialView>('path');
   const [step, setStep] = useState(0);
   const { playClick } = useSound();
@@ -19,6 +20,11 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
   const handleAction = (action: () => void) => {
     playClick();
     action();
+  };
+
+  const finalizeTutorial = () => {
+    localStorage.setItem('fives_tutorial_complete', 'true');
+    onClose();
   };
 
   const steps = [
@@ -39,13 +45,6 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
     }
   ];
 
-  const simSteps = [
-    { title: "THE DEAL", content: "You start with 5 cards. The goal? Clear your hand or have the lowest points.", icon: "🎴", action: "DEALING..." },
-    { title: "PICKING DISCARD", content: "Select matching cards. Two 5s? Throw them both in one go!", icon: "📤", action: "SELECTING..." },
-    { title: "THE OPEN PILE", content: "If the open card is low, grab it! Otherwise, risk the deck.", icon: "📥", action: "PICKING..." },
-    { title: "THE WILD CARD", content: "That card in the center? It's the Wild Card. It's worth 0 points!", icon: "✨", action: "REVEALING..." }
-  ];
-
   const tips = [
     {
       id: "01",
@@ -64,174 +63,80 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
     textShadow: '2px 2px 0px rgba(0,0,0,0.4), -1px -1px 0px rgba(255,255,255,0.1)'
   };
 
-  const pureGoldIconStyle = {
-    color: '#FFD700',
-    filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.4))'
-  };
-
   const goldenBorder = "border-[12px] border-double border-brand-gold/60 shadow-[inset_0_0_20px_rgba(245,228,195,0.2)]";
-
-  // Auto-play simulation
-  useEffect(() => {
-    if (view === 'simulation') {
-      const timer = setInterval(() => {
-        setStep(s => (s + 1) % simSteps.length);
-      }, 4000);
-      return () => clearInterval(timer);
-    }
-  }, [view]);
 
   const renderPath = () => (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.05 }}
-      className="space-y-6 pt-10"
+      className="space-y-8 pt-8"
     >
-      <div className="text-center mb-10">
-        <h1 
-          style={pureGoldStyle}
-          className="text-7xl font-display font-black mb-4 tracking-tighter italic uppercase drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)]"
+      <div className="flex justify-between items-center mb-8 px-4">
+        <div className="text-left">
+           <h2 className="text-4xl font-black italic text-brand-gold uppercase tracking-tighter leading-none embossed">LEARN TO SURVIVE</h2>
+           <p className="text-brand-gold/40 text-[10px] font-black uppercase tracking-[0.4em] mt-2 italic">WINNER SCORES THE LEAST</p>
+        </div>
+        <button 
+          onClick={finalizeTutorial}
+          className="bg-brand-gold/10 hover:bg-brand-gold/20 text-brand-gold font-black text-[10px] uppercase tracking-widest px-6 py-2.5 rounded-full border border-brand-gold/30 transition-all shadow-xl"
         >
-          LEARN FIVES
-        </h1>
-        <motion.p 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          style={pureGoldStyle}
-          className="font-display font-black text-xl tracking-[0.2em] italic uppercase"
-        >
-          WINNER SCORES THE LEAST
-        </motion.p>
+          SKIP
+        </button>
       </div>
 
-      <div className="space-y-6">
+      <div className="text-center space-y-4 mb-8">
+         <div className="w-16 h-16 bg-brand-gold rounded-[24px] mx-auto flex items-center justify-center shadow-[0_20px_40px_rgba(255,215,0,0.2)] border-2 border-white/10 group">
+            <GraduationCap className="w-8 h-8 text-brand-red group-hover:scale-110 transition-transform" />
+         </div>
+         <p className="text-brand-gold/40 text-[11px] font-black uppercase tracking-[0.3em] italic">Choose your learning path</p>
+      </div>
+
+      <div className="space-y-4 px-4 pb-8">
         {[
-          { icon: <BookOpen className="w-8 h-8" />, title: "BASIC RULES", desc: "WALKTHROUGH & SCORING", view: 'steps' },
-          { icon: <Play className="w-8 h-8" />, title: "INTERACTIVE GAMEPLAY", desc: "LIVE GUIDED SIMULATION", view: 'simulation', primary: true },
-          { icon: <Zap className="w-8 h-8" />, title: "PRO TIPS", desc: "STRATEGY FOR EXPERTS", view: 'tips' }
+          { icon: <BookOpen className="w-6 h-6" />, title: "BASIC RULES", desc: "Walkthrough & scoring", view: 'steps' },
+          { icon: <Gamepad2 className="w-6 h-6" />, title: "INTERACTIVE \nGAMEPLAY", desc: "Guided match simulation", action: onStartInteractive, primary: true },
+          { icon: <Zap className="w-6 h-6" />, title: "PRO TIPS", desc: "Strategy for experts", view: 'tips' }
         ].map((item, idx) => (
-          <Button
+          <button
             key={idx}
-            onClick={() => handleAction(() => { setView(item.view as TutorialView); setStep(0); })}
+            onClick={() => handleAction(() => { 
+                if (item.action) {
+                    item.action();
+                } else {
+                    setView(item.view as TutorialView); 
+                    setStep(0); 
+                }
+            })}
             className={cn(
-              "w-full h-36 rounded-[48px] flex flex-col items-center justify-center border-[6px] transition-all relative overflow-hidden group shadow-[0_20px_40px_rgba(0,0,0,0.8)]",
+              "w-full p-8 rounded-[40px] flex flex-col items-center justify-center gap-2 border transition-all relative overflow-hidden group shadow-2xl active:scale-95",
               item.primary 
-                ? "bg-brand-gold text-brand-red border-white border-b-[12px] shadow-[0_15px_30px_rgba(31,0,0,0.6)]" 
-                : "bg-brand-maroon text-brand-gold border-brand-gold/10 border-b-[10px] active:border-b-[4px] active:translate-y-[6px]"
+                ? "bg-brand-gold text-brand-red border-black shadow-[0_20px_60px_rgba(255,215,0,0.3)] hover:scale-[1.02]" 
+                : "bg-brand-maroon/20 text-brand-gold border-brand-gold/10 hover:bg-brand-maroon/40"
             )}
           >
-            <div className="absolute inset-0 bg-linear-to-b from-white/10 to-transparent pointer-events-none" />
-            <div className={cn("mb-2 flex items-center gap-4")}>
-               <div className={cn("p-2 rounded-xl", item.primary ? "bg-brand-red/10" : "bg-brand-gold/5")}>
-                 {item.icon}
-               </div>
-               <div className="flex flex-col items-start">
-                  <span style={item.primary ? {} : pureGoldStyle} className="font-display font-black text-3xl leading-none uppercase tracking-tighter italic">
-                    {item.title}
-                  </span>
-                  <span className={cn("text-[9px] font-black uppercase tracking-[0.3em] mt-1", item.primary ? "text-brand-red/60" : "text-brand-gold/40")}>
-                     {item.desc}
-                  </span>
-               </div>
+            <div className="relative z-10 flex flex-col items-center gap-2">
+               {item.icon}
+               <span className={cn("font-display font-black text-xl leading-none uppercase tracking-tighter italic text-center whitespace-pre-wrap", item.primary ? "text-brand-red" : "text-brand-gold")}>
+                 {item.title}
+               </span>
+               <span className={cn("text-[10px] font-black uppercase tracking-widest mt-1", item.primary ? "text-brand-red/60" : "text-brand-gold/40")}>
+                  {item.desc}
+               </span>
             </div>
-            {/* Action Indicator Bar */}
-            <div className={cn("absolute bottom-0 inset-x-0 h-1.5 opacity-40", item.primary ? "bg-brand-red" : "bg-brand-gold")} />
-          </Button>
+            {item.primary && (
+               <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent opacity-50 pointer-events-none" />
+            )}
+          </button>
         ))}
       </div>
 
-      <Button variant="ghost" onClick={() => handleAction(onClose)} className="w-full text-brand-gold/40 mt-12 font-black uppercase tracking-widest text-[10px] hover:text-brand-gold">
-         <ArrowLeft className="mr-2 h-4 w-4" /> QUIT TO MENU
-      </Button>
-    </motion.div>
-  );
-
-  const renderSimulation = () => (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }}
-      className="flex flex-col h-full pt-10"
-    >
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex flex-col">
-          <span style={pureGoldStyle} className="text-[10px] font-black tracking-[0.3em] uppercase opacity-60">Cinema</span>
-          <span style={pureGoldStyle} className="text-3xl font-display font-black italic">LIVE GUIDED PLAY</span>
-        </div>
-        <Button variant="ghost" size="icon" onClick={() => handleAction(() => setView('path'))} className="rounded-full text-brand-gold/40 hover:text-brand-gold">
-           <X size={28} />
-        </Button>
-      </div>
-
-      <div className="flex-1 bg-[#1a0505] border-[10px] border-brand-gold/20 rounded-[60px] flex flex-col items-center justify-center text-center relative overflow-hidden shadow-[0_60px_120px_rgba(0,0,0,0.9),inset_0_0_60px_rgba(0,0,0,0.6)]">
-         <div className="absolute top-0 left-0 p-12 opacity-5 animate-pulse">
-            <Play size={160} className="text-brand-gold" />
-         </div>
-         
-         <div className="relative z-10 w-full px-10">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ x: 50, opacity: 0, scale: 0.8 }}
-                animate={{ x: 0, opacity: 1, scale: 1 }}
-                exit={{ x: -50, opacity: 0, scale: 0.8 }}
-                className="flex flex-col items-center"
-              >
-                 <div className="w-40 h-40 bg-brand-gold/10 rounded-full flex items-center justify-center mb-10 shadow-[0_0_60px_rgba(245,228,195,0.1)] border-2 border-brand-gold/20">
-                    <span className="text-9xl drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)] animate-bounce">{simSteps[step].icon}</span>
-                 </div>
-                 
-                 <div className="bg-brand-red/40 px-4 py-1 rounded-full border border-brand-gold/20 mb-6 font-black text-[8px] tracking-[0.3em] text-brand-gold uppercase">
-                    {simSteps[step].action}
-                 </div>
-
-                 <h3 style={pureGoldStyle} className="text-4xl font-display font-black mb-4 italic uppercase tracking-tighter">{simSteps[step].title}</h3>
-                 <p className="text-brand-gold/70 leading-relaxed font-medium text-lg max-w-sm drop-shadow-md">
-                    {simSteps[step].content}
-                 </p>
-              </motion.div>
-            </AnimatePresence>
-         </div>
-         
-         <div className="flex gap-4 mt-16 bg-black/30 px-6 py-3 rounded-full border border-white/5">
-            {simSteps.map((_, i) => (
-              <div 
-                key={i} 
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-500", 
-                  i === step ? "bg-brand-gold w-10 shadow-[0_0_10px_rgba(245,228,195,0.8)]" : "bg-brand-gold/10 w-3"
-                )} 
-              />
-            ))}
-         </div>
-
-         <div className="absolute bottom-0 left-0 h-1.5 bg-brand-gold/30 w-full overflow-hidden">
-            <motion.div 
-              key={step}
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 4, ease: "linear" }}
-              className="h-full bg-brand-gold shadow-[0_0_15px_rgba(245,228,195,1)]"
-            />
-         </div>
-      </div>
-
-      <div className="flex items-center gap-4 mt-10">
-         <Button 
-            variant="ghost" 
-            onClick={() => handleAction(() => setView('path'))}
-            className="flex-1 h-20 rounded-[40px] text-brand-gold/40 font-black uppercase tracking-widest text-[10px] border-2 border-brand-gold/5"
-         >
-            BACK TO DASHBOARD
-         </Button>
-         <Button 
-            onClick={() => handleAction(() => onClose())}
-            className="flex-[2] h-20 rounded-[40px] bg-brand-gold text-brand-red font-display font-black text-3xl italic tracking-tighter shadow-[0_20px_40px_rgba(0,0,0,0.4)] border-b-[8px] border-black/20 hover:scale-[1.02] active:scale-95 transition-all"
-         >
-            ENTER THE ARENA
-         </Button>
-      </div>
+      <button 
+        onClick={() => handleAction(onClose)} 
+        className="w-full text-brand-gold/40 mt-8 font-black uppercase tracking-[0.4em] text-[12px] hover:text-brand-gold embossed transition-all hover:scale-105 active:scale-95"
+      >
+        BACK TO MENU
+      </button>
     </motion.div>
   );
 
@@ -244,8 +149,8 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
     >
       <div className="flex items-center justify-between mb-8">
         <div className="flex flex-col">
-          <span style={pureGoldStyle} className="text-[10px] font-black tracking-[0.3em] uppercase opacity-60">Knowledge</span>
-          <span style={pureGoldStyle} className="text-3xl font-display font-black italic">BASIC RULES</span>
+          <span style={pureGoldStyle} className="text-[9px] font-black tracking-[0.3em] uppercase opacity-60 break-words">Knowledge</span>
+          <span style={pureGoldStyle} className="text-2xl font-display font-black italic break-words">BASIC RULES</span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => handleAction(() => setView('path'))} className="rounded-full text-brand-gold/40 hover:text-brand-gold">
            <X size={28} />
@@ -256,9 +161,9 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
          <div className="absolute bottom-0 right-0 p-8 opacity-5 rotate-12">
             <BookOpen size={140} className="text-brand-gold" />
          </div>
-         <span className="text-9xl mb-10 drop-shadow-2xl">{steps[step].image}</span>
-         <h3 style={pureGoldStyle} className="text-4xl font-display font-black mb-6 italic uppercase tracking-tighter">{steps[step].title}</h3>
-         <p className="text-brand-gold/60 leading-relaxed font-medium whitespace-pre-line text-lg max-w-sm">
+         <span className="text-7xl mb-6 drop-shadow-2xl">{steps[step].image}</span>
+         <h3 style={pureGoldStyle} className="text-3xl font-display font-black mb-4 italic uppercase tracking-tighter break-words px-4">{steps[step].title}</h3>
+         <p className="text-brand-gold/60 leading-relaxed font-medium whitespace-pre-line text-base max-w-sm px-6 break-words">
             {steps[step].content}
          </p>
          
@@ -284,7 +189,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
             BACK
          </Button>
          <Button 
-            onClick={() => handleAction(() => step < steps.length - 1 ? setStep(s => s + 1) : setView('path'))}
+            onClick={() => handleAction(() => step < steps.length - 1 ? setStep(s => s + 1) : finalizeTutorial())}
             className="flex-[2] h-20 rounded-[40px] bg-brand-gold text-brand-red font-display font-black text-3xl italic tracking-tighter shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
          >
             {step < steps.length - 1 ? "CONTINUE" : "ASCEND"}
@@ -301,7 +206,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
       className="flex flex-col h-full pt-10"
     >
       <div className="flex items-center justify-between mb-8">
-        <h2 style={pureGoldStyle} className="text-5xl font-display font-black italic">PRO TIPS</h2>
+        <h2 style={pureGoldStyle} className="text-3xl sm:text-4xl font-display font-black italic break-words">PRO TIPS</h2>
         <Button variant="ghost" size="icon" onClick={() => handleAction(() => setView('path'))} className="text-brand-gold/40 hover:text-brand-gold">
            <X size={28} />
         </Button>
@@ -322,7 +227,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
 
       <Button 
         onClick={() => handleAction(() => setView('path'))} 
-        className="w-full h-20 rounded-[40px] bg-brand-gold text-brand-red font-display font-black text-3xl italic tracking-tighter mt-10 shadow-[0_15px_30px_rgba(0,0,0,0.6)] hover:scale-[1.02] active:scale-95 border-b-[8px] border-black/20"
+        className="w-full h-16 sm:h-20 rounded-[40px] bg-brand-gold text-brand-red font-display font-black text-xl sm:text-3xl italic tracking-tighter mt-10 shadow-[0_15px_30px_rgba(0,0,0,0.6)] hover:scale-[1.02] active:scale-95 border-b-[8px] border-black/20 break-words"
       >
          RETURN TO ACADEMY
       </Button>
@@ -338,7 +243,6 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose }) => {
         <AnimatePresence mode="wait">
           {view === 'path' && renderPath()}
           {view === 'steps' && renderSteps()}
-          {view === 'simulation' && renderSimulation()}
           {view === 'tips' && renderTips()}
         </AnimatePresence>
       </div>

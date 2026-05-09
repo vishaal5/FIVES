@@ -1,6 +1,6 @@
 {
   "name": "FIVES",
-  "description": "A tactical card game where the goal is to have the lowest hand value. Features single-player AI, Firebase-powered multiplayer, and a comprehensive tutorial.",
+  "description": "FIVES - A tactical card game where the goal is to have the lowest hand value. Features single-player AI, Firebase-powered multiplayer, and a comprehensive tutorial.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

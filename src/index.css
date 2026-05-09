@@ -7,16 +7,39 @@
 
   --animate-spin-slow: spin 3s linear infinite;
 
-  --color-brand-red: #3d0000;
-  --color-brand-maroon: #1a0000;
-  --color-brand-gold: #f5e4c3;
-  --color-brand-yellow: #ffcc00;
+  --color-brand-red: #800020; /* Burgundy */
+  --color-brand-maroon: #4D0013;
+  --color-brand-gold: #D4AF37; /* Metallic Gold */
+  --color-brand-yellow: #FFD700;
+
+  /* Berry Theme aliases */
+  --color-berry: #630d16;
+  --color-berry-dark: #2a0303;
+  --color-berry-pink: #ff0055;
+  --color-gold: #D4AF37;
+  --color-gold-light: #F5E4C3;
+  --color-cream: #FFFDD0;
 }
 
 @layer base {
   body {
-    @apply font-sans bg-brand-red text-brand-gold;
+    @apply font-sans bg-brand-maroon text-brand-gold;
   }
+}
+
+.embossed {
+  color: #D4AF37;
+  text-shadow: 1px 1px 1px #000, 
+               -1px -1px 1px #800020,
+               2px 2px 3px rgba(0,0,0,0.8);
+  font-weight: 900;
+}
+
+.embossed-box {
+  background: linear-gradient(135deg, #800020 0%, #4D0013 100%);
+  border: 1px solid #D4AF37;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.3),
+              1px 1px 1px rgba(255,255,255,0.1);
 }
 
 .text-display {

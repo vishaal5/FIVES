@@ -52,15 +52,15 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
         {mode === 'selection' && (
           <div className="space-y-6 text-center">
             <div className="mb-12">
-               <span style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80">Duel Mode</span>
-               <h2 style={pureGoldStyle} className="text-5xl font-display font-black tracking-tighter mt-2 italic uppercase">MULTIPLAYER</h2>
+               <span style={pureGoldStyle} className="text-[9px] font-black uppercase tracking-[0.4em] opacity-80 break-words">Duel Mode</span>
+               <h2 style={pureGoldStyle} className="text-3xl sm:text-4xl font-display font-black tracking-tighter mt-2 italic uppercase break-words px-4">MULTIPLAYER</h2>
             </div>
             
             <Button 
                onClick={() => handleAction(() => setMode('create'))}
-               className="w-full h-32 text-2xl font-display font-black bg-brand-gold text-brand-red hover:bg-brand-gold/90 rounded-[40px] shadow-2xl flex flex-col items-center justify-center gap-0 group transition-all"
+               className="w-full h-24 sm:h-32 text-xl sm:text-2xl font-display font-black bg-brand-gold text-brand-red hover:bg-brand-gold/90 rounded-[40px] shadow-2xl flex flex-col items-center justify-center gap-0 group transition-all break-words"
             >
-              <Plus className="h-6 w-6 mb-2 group-hover:rotate-90 transition-transform" />
+              <Plus className="h-5 w-5 sm:h-6 sm:w-6 mb-2 group-hover:rotate-90 transition-transform" />
               <span className="italic tracking-tighter">CREATE ROOM</span>
             </Button>
             
@@ -72,9 +72,9 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
             <Button 
                onClick={() => handleAction(() => setMode('join'))}
                variant="outline"
-               className="w-full h-32 text-2xl font-display font-black border-2 border-brand-gold/10 text-brand-gold bg-brand-maroon/40 hover:bg-brand-gold/10 rounded-[40px] flex flex-col items-center justify-center gap-0 group transition-all"
+               className="w-full h-24 sm:h-32 text-xl sm:text-2xl font-display font-black border-2 border-brand-gold/10 text-brand-gold bg-brand-maroon/40 hover:bg-brand-gold/10 rounded-[40px] flex flex-col items-center justify-center gap-0 group transition-all break-words"
             >
-              <Users className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 mb-2 group-hover:scale-110 transition-transform" />
               <span className="italic tracking-tighter">JOIN BATTLE</span>
             </Button>
           </div>
@@ -140,7 +140,7 @@ const MultiplayerSetup: React.FC<MultiplayerSetupProps> = ({ onBack, onCreateRoo
                      placeholder="E.G. AB12XY" 
                      value={roomId} 
                      onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                     className="h-20 text-4xl font-display font-black uppercase text-center bg-brand-maroon/40 border-2 border-brand-gold/10 text-brand-gold rounded-[32px] placeholder:text-brand-gold/5 focus:border-brand-gold transition-all"
+                     className="h-20 text-2xl font-display font-black uppercase text-center bg-brand-maroon/40 border-2 border-brand-gold/10 text-brand-gold rounded-[32px] placeholder:text-brand-gold/5 focus:border-brand-gold transition-all"
                   />
                 </div>
 

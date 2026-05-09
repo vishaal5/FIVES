@@ -19,8 +19,9 @@ export const createDeck = (): Card[] => {
   for (let i = 0; i < 2; i++) {
     deck.push({
       id: `joker-${i}-${Math.random().toString(36).substr(2, 9)}`,
-      rank: 'Joker',
-      isPretendJoker: false
+      rank: 'JK',
+      isPretendJoker: false,
+      suit: 'joker'
     });
   }
   return shuffle(deck);
@@ -36,7 +37,7 @@ export const shuffle = <T>(array: T[]): T[] => {
 };
 
 export const getCardValue = (card: Card, pretendJokerRank: Rank | null): number => {
-  if (card.rank === 'Joker' || card.isPretendJoker || card.rank === pretendJokerRank) return 0;
+  if (card.rank === 'JK' || card.isPretendJoker || card.rank === pretendJokerRank) return 0;
   
   switch (card.rank) {
     case 'A': return 1;
@@ -73,7 +74,7 @@ export const getInitSetup = (deck: Card[]) => {
 };
 
 const getRankNumericalValue = (rank: Rank): number => {
-  if (rank === 'Joker') return 0;
+  if (rank === 'JK') return 0;
   if (rank === 'A') return 1;
   if (rank === 'J') return 11;
   if (rank === 'Q') return 12;
