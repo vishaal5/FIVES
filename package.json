@@ -8,15 +8,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit",
-    "sync:click-sound": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-click-sound.ps1"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.3.3",
     "@capacitor/haptics": "^8.0.2",
-    "@capacitor/android": "^8.3.3",
     "@fontsource-variable/geist": "^5.2.8",
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
@@ -36,7 +34,6 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.3.3",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
