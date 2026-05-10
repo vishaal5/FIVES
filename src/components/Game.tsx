@@ -69,8 +69,8 @@ const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 
 const ASSETS = {
   SOUNDS: {
-    // Custom click sound provided by user
-    CLICK: '/click sound.mpeg', 
+    // Using a reliable CDN for click as primary to ensure it works
+    CLICK: 'https://cdn.pixabay.com/audio/2022/11/25/audio_91709674dc.mp3', 
     SWEEP: 'https://cdn.pixabay.com/audio/2021/08/09/audio_8e7a0a6a0e.mp3',
     DRAW: 'https://cdn.pixabay.com/audio/2022/03/10/audio_c352787fc3.mp3',
     WIN: 'https://cdn.pixabay.com/audio/2021/08/04/audio_12e9b0b468.mp3',
@@ -198,25 +198,30 @@ const calculateHandValue = (hand: CardType[], jokerRank: Rank | null): number =>
   return hand.reduce((sum, card) => sum + getRankValue(card.rank, jokerRank), 0);
 };
 
-const Header = ({ players, onSettings, isMultiplayer, socketConnected, onBack }: { players: Player[], onSettings: () => void, isMultiplayer: boolean, socketConnected: boolean, onBack: () => void }) => (
+const Header = ({ players, onSettings, isMultiplayer, socketConnected, onBack, currentRound, currentGame, maxGames }: { players: Player[], onSettings: () => void, isMultiplayer: boolean, socketConnected: boolean, onBack: () => void, currentRound: number, currentGame: number, maxGames: number }) => (
   <header className="w-full flex justify-between items-center mb-2 sm:mb-4 relative z-50 px-2 sm:px-4">
     <div className="flex items-center gap-3 sm:gap-5">
       <button 
         onClick={onBack}
-        className="p-2 sm:p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/15 transition-all text-white group embossed-box"
+        className="w-10 h-10 rounded-full bg-brand-maroon premium-border flex items-center justify-center text-brand-gold shadow-xl hover:scale-105 active:scale-95 transition-all no-theme"
       >
         <ArrowLeft className="w-5 h-5" />
       </button>
       <div className="flex items-center gap-3 sm:gap-5">
-        <div>
-          <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-brand-gold uppercase tracking-widest leading-none embossed">Game {currentGame}/{maxGames}</span>
+            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none">•</span>
+            <span className="text-[10px] font-black text-white/60 uppercase tracking-widest leading-none embossed">Round {currentRound}</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1 sm:mt-1.5">
             <div className="flex items-center gap-2 opacity-80">
               <div className={cn(
                 "w-1.5 h-1.5 rounded-full",
-                isMultiplayer ? (socketConnected ? "bg-brand-gold shadow-[0_0_12px_var(--color-brand-gold)]" : "bg-brand-maroon shadow-[0_0_12px_var(--color-brand-maroon)] animate-pulse") : "bg-white/20"
+                socketConnected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
               )} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-gold/50 embossed break-words">
-                {isMultiplayer ? (socketConnected ? 'ONLINE' : 'CONNECTING...') : 'SINGLE PLAYER'}
+              <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest leading-none embossed">
+                {isMultiplayer ? (socketConnected ? 'Network Live' : 'Reconnecting') : 'Offline Local'}
               </span>
             </div>
           </div>
@@ -225,11 +230,11 @@ const Header = ({ players, onSettings, isMultiplayer, socketConnected, onBack }:
     </div>
 
     <div className="flex items-center gap-4 sm:gap-6">
-      <div className="hidden sm:flex gap-2 bg-black/40 backdrop-blur-xl p-1 sm:p-1.5 rounded-full border border-white/5 shadow-2xl">
+      <div className="flex gap-1.5 sm:gap-2 bg-brand-maroon/80 premium-border p-1 sm:p-1.5 rounded-full shadow-2xl overflow-x-auto max-w-[150px] sm:max-w-none no-scrollbar">
         {players.map((p, idx) => (
-          <div key={`head-player-${p.id || 'cpu'}-${idx}`} className="flex flex-col items-center px-4 sm:px-6 py-0.5 sm:py-1 border-r border-white/5 last:border-0 min-w-[60px] sm:min-w-[80px]">
-            <span className="text-[8px] sm:text-[9px] font-black text-white/30 uppercase tracking-[0.1em] sm:tracking-[0.15em] truncate max-w-[50px] sm:max-w-[60px] embossed">{p.name}</span>
-            <span className={cn("text-lg sm:text-xl font-black embossed", idx === 0 ? "text-gold" : "text-cream")}>{p.score}</span>
+          <div key={`head-player-${p.id || 'cpu'}-${idx}`} className="flex flex-col items-center px-3 sm:px-6 py-0.5 sm:py-1 border-r border-white/5 last:border-0 min-w-[60px] sm:min-w-[80px]">
+            <span className="text-[7px] sm:text-[9px] font-black text-white/30 uppercase tracking-[0.1em] sm:tracking-[0.15em] truncate max-w-[50px] sm:max-w-[70px] embossed">{p.name}</span>
+            <span className={cn("text-sm sm:text-xl font-black embossed", idx === 0 ? "text-gold" : "text-cream")}>{p.score}</span>
           </div>
         ))}
       </div>
@@ -237,13 +242,29 @@ const Header = ({ players, onSettings, isMultiplayer, socketConnected, onBack }:
   </header>
 );
 
-export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, playerName?: string, onBack: () => void, isTutorialMode?: boolean }> = ({ playerCount = 2, maxRounds = 5, playerName: initialPlayerName, onBack, isTutorialMode = false }) => {
+export const GameBoard: React.FC<{ 
+  playerCount?: number, 
+  maxRounds?: number, 
+  playerName?: string, 
+  onBack: () => void, 
+  isTutorialMode?: boolean,
+  roomId?: string,
+  initialIsMultiplayer?: boolean
+}> = ({ 
+  playerCount = 2, 
+  maxRounds = 5, 
+  playerName: initialPlayerName, 
+  onBack, 
+  isTutorialMode = false,
+  roomId: initialRoomId = '',
+  initialIsMultiplayer = false
+}) => {
   const cpuActionTimer = useRef<NodeJS.Timeout | null>(null);
   const isActionInProgress = useRef(false);
 
   const [isInitializing, setIsInitializing] = useState(true);
   const [authReady, setAuthReady] = useState(false);
-  const [roomId, setRoomId] = useState('');
+  const [roomId, setRoomId] = useState(initialRoomId);
   const [playerName, setPlayerName] = useState(() => {
     if (initialPlayerName) return initialPlayerName;
     if (typeof window === 'undefined') return 'Ace';
@@ -294,7 +315,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
     return () => unsub();
   }, []);
 
-  const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [isMultiplayer, setIsMultiplayer] = useState(initialIsMultiplayer);
   const [effects, setEffects] = useState<GameEffect[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<{roomId: string, roomName: string, playerCount: number, maxPlayers: number}[]>([]);
@@ -843,16 +864,16 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
           discardPile: [firstOpen],
           openCard: firstOpen,
           players: gamePlayers,
-          currentPlayerIndex: 0,
-          startingPlayerIndex: 0,
+          currentPlayerIndex: (gameState.gameCount % actualNumPlayers), 
+          startingPlayerIndex: (gameState.gameCount % actualNumPlayers),
           status: 'playing',
           roundCount: 1,
-          gameCount: 0,
-          numPlayers: actualNumPlayers, // Update to actual if different from setting
+          gameCount: gameState.gameCount + 1,
+          numPlayers: actualNumPlayers,
           jokerRank: firstJoker.rank,
           jokerCard: firstJoker,
           availableCardAtTurnStart: firstOpen,
-          message: 'Game Started!',
+          message: `${gamePlayers[gameState.gameCount % actualNumPlayers].name}'s Turn`,
           deckingPlayerId: null,
           deckingValue: null,
           deckChallengeEndTime: null
@@ -1041,6 +1062,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
     newPlayers[gameState.currentPlayerIndex].hand.push(drawn);
     
     const nextIdx = (gameState.currentPlayerIndex + 1) % gameState.numPlayers;
+    const isRoundDone = nextIdx === gameState.startingPlayerIndex;
     const actionMsg = `${personDrawn} drew from Deck`;
 
     const newState: GameState = {
@@ -1048,8 +1070,9 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       message: actionMsg,
       lastAction: actionMsg,
       currentPlayerIndex: nextIdx,
-      roundCount: gameState.roundCount + (1 / gameState.numPlayers),
-      turnStartTime: Date.now()
+      roundCount: isRoundDone ? gameState.roundCount + 1 : gameState.roundCount,
+      turnStartTime: Date.now(),
+      availableCardAtTurnStart: newDiscardPile[newDiscardPile.length - 1] || null
     };
     setGameState(newState);
     setHasDrawnThisTurn(true);
@@ -1087,13 +1110,29 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
     }
 
     sounds.playClick();
-    const picked = gameState.openCard;
-    const newDiscard = gameState.discardPile.slice(0, -1);
+    
+    let picked = gameState.openCard;
+    let newDiscard = gameState.discardPile.slice(0, -1);
+
+    if (hasDiscardedThisTurn && gameState.availableCardAtTurnStart) {
+        // When picking from discard after discarding, we must pick the card that was there at turn start
+        // which might be several cards deep now if we discarded multiple.
+        picked = gameState.availableCardAtTurnStart;
+        const availableIdx = gameState.discardPile.findLastIndex(c => c.id === picked?.id);
+        if (availableIdx !== -1) {
+            newDiscard = [...gameState.discardPile];
+            newDiscard.splice(availableIdx, 1);
+        }
+    }
+
+    if (!picked) return;
+
     const newPlayers = [...gameState.players];
     const personDrawn = newPlayers[gameState.currentPlayerIndex].name;
     newPlayers[gameState.currentPlayerIndex].hand.push(picked);
     
     const nextIdx = (gameState.currentPlayerIndex + 1) % gameState.numPlayers;
+    const isRoundDone = nextIdx === gameState.startingPlayerIndex;
     const actionMsg = `${personDrawn} picked from Open Pile`;
     const newState: GameState = {
       ...gameState, 
@@ -1103,7 +1142,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       message: actionMsg,
       lastAction: actionMsg,
       currentPlayerIndex: nextIdx,
-      roundCount: gameState.roundCount + (1 / gameState.numPlayers),
+      roundCount: isRoundDone ? gameState.roundCount + 1 : gameState.roundCount,
       turnStartTime: Date.now(),
       availableCardAtTurnStart: newDiscard[newDiscard.length - 1] || null
     };
@@ -1178,11 +1217,9 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       players: newPlayers, 
       discardPile: [...gameState.discardPile, ...cardsToDiscard],
       openCard: cardsToDiscard[cardsToDiscard.length - 1], 
-      // Do not update currentPlayerIndex here anymore - draw ends the turn
-      currentPlayerIndex: gameState.currentPlayerIndex,
-      roundCount: gameState.roundCount,
       message: isTutorial ? 'Great! Now Draw.' : 'Discarded. Pick a card.',
-      availableCardAtTurnStart: cardsToDiscard[cardsToDiscard.length - 1]
+      availableCardAtTurnStart: gameState.availableCardAtTurnStart || gameState.openCard,
+      lastAction: `${currentPlayer.name} discarded`
     };
 
     setGameState(newState);
@@ -1223,7 +1260,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       };
     });
 
-    const isGameOver = state.gameCount + 1 >= state.maxGames;
+    const isGameOver = state.gameCount >= state.maxGames;
     const sortedPlayersForWin = [...newPlayers].sort((a, b) => a.score - b.score);
     const nextStartingIndex = (state.startingPlayerIndex! + 1) % state.numPlayers;
     
@@ -1271,9 +1308,9 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
     const values = gameState.players.map(p => calculateHandValue(p.hand, gameState.jokerRank));
     const deckerVal = values[gameState.currentPlayerIndex];
     
-    // Auto-allow if points are zero, otherwise wait for round 5
     const isZeroPoints = deckerVal === 0;
-    if (gameState.status !== 'playing' || hasDiscardedThisTurn || (!isZeroPoints && Math.floor(gameState.roundCount) < 5)) return;
+    const canDeckStatus = Math.floor(gameState.roundCount) >= 5 || isZeroPoints;
+    if (gameState.status !== 'playing' || hasDiscardedThisTurn || (!canDeckStatus && !isZeroPoints)) return;
     
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     if (isMultiplayer && currentPlayer.id !== playerId) return;
@@ -1358,7 +1395,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                 discardPile: [...p.discardPile, ...toDisc],
                 openCard: lastDisc,
                 message: `${cpu.name} discarded`,
-                availableCardAtTurnStart: lastDisc
+                availableCardAtTurnStart: p.availableCardAtTurnStart || p.openCard
               }));
               setHasDiscardedThisTurn(true);
               setHasDrawnThisTurn(false);
@@ -1368,37 +1405,43 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
 
            // 1. DRAW Phase
            if (hasDiscardedThisTurn && !hasDrawnThisTurn) {
-             const oldAvailable = gameState.openCard;
-             let picked: CardType;
-             const nextIdx = (gameState.currentPlayerIndex + 1) % gameState.numPlayers;
+             setGameState(p => {
+               const oldAvailable = p.availableCardAtTurnStart;
+               let picked: CardType;
+               const nextIdx = (p.currentPlayerIndex + 1) % p.numPlayers;
+               const isRoundDone = nextIdx === p.startingPlayerIndex;
+               let finalState = { ...p };
 
-             if (oldAvailable && (getRankValue(oldAvailable.rank, gameState.jokerRank) < 5 || oldAvailable.rank === gameState.jokerRank || oldAvailable.rank === 'JK')) {
-                // Pick from available open card
-                picked = oldAvailable;
-                const newDiscard = gameState.discardPile.filter(c => c.id !== picked.id);
-                setGameState(p => ({
-                  ...p, 
-                  discardPile: newDiscard, 
-                  openCard: newDiscard[newDiscard.length - 1] || null,
-                  players: p.players.map((pl, i) => i === p.currentPlayerIndex ? { ...pl, hand: [...pl.hand, picked] } : pl),
-                  currentPlayerIndex: nextIdx,
-                  roundCount: p.roundCount + (1 / p.numPlayers),
-                  message: `${cpu.name} picked from Open Pile`,
-                  availableCardAtTurnStart: newDiscard[newDiscard.length - 1] || null
-                }));
-             } else {
-                // Pick from deck
-                const deck = [...gameState.deck];
-                picked = deck.pop()!;
-                setGameState(p => ({
-                  ...p, 
-                  deck,
-                  players: p.players.map((pl, i) => i === p.currentPlayerIndex ? { ...pl, hand: [...pl.hand, picked] } : pl),
-                  currentPlayerIndex: nextIdx,
-                  roundCount: p.roundCount + (1 / p.numPlayers),
-                  message: `${cpu.name} drew from Deck`
-                }));
-             }
+               if (oldAvailable && (getRankValue(oldAvailable.rank, p.jokerRank) < 5 || oldAvailable.rank === p.jokerRank || oldAvailable.rank === 'JK')) {
+                  // Pick from available open card
+                  picked = oldAvailable;
+                  const newDiscard = p.discardPile.filter(c => c.id !== picked.id);
+                  finalState = {
+                    ...p, 
+                    discardPile: newDiscard, 
+                    openCard: newDiscard[newDiscard.length - 1] || null,
+                    players: p.players.map((pl, i) => i === p.currentPlayerIndex ? { ...pl, hand: [...pl.hand, picked] } : pl),
+                    currentPlayerIndex: nextIdx,
+                    roundCount: isRoundDone ? p.roundCount + 1 : p.roundCount,
+                    message: `${p.players[p.currentPlayerIndex].name} picked ${picked.rank} from Open Pile`,
+                    availableCardAtTurnStart: newDiscard[newDiscard.length - 1] || null
+                  };
+               } else {
+                  // Pick from deck
+                  const deck = [...p.deck];
+                  picked = deck.pop()!;
+                  finalState = {
+                    ...p, 
+                    deck,
+                    players: p.players.map((pl, i) => i === p.currentPlayerIndex ? { ...pl, hand: [...pl.hand, picked] } : pl),
+                    currentPlayerIndex: nextIdx,
+                    roundCount: isRoundDone ? p.roundCount + 1 : p.roundCount,
+                    message: `${p.players[p.currentPlayerIndex].name} drew ${picked.rank} from Deck`,
+                    availableCardAtTurnStart: p.openCard
+                  };
+               }
+               return finalState;
+             });
              setHasDrawnThisTurn(true);
              setHasDiscardedThisTurn(false);
              sounds.playDraw();
@@ -1465,7 +1508,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
     const data = TUTORIAL_DATA[tutorialStep - 1];
 
     return (
-      <div className="fixed top-24 left-0 right-0 z-[600] flex justify-center pointer-events-none px-4">
+      <div className="fixed top-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none px-4">
         <motion.div 
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -1522,7 +1565,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="absolute bottom-40 left-1/2 -translate-x-1/2 bg-berry border-2 border-white/20 p-4 rounded-2xl shadow-2xl max-w-xs text-center relative pointer-events-auto"
+            className="absolute bottom-40 left-1/2 -translate-x-1/2 bg-brand-red border-2 border-white/20 p-4 rounded-2xl shadow-2xl max-w-xs text-center relative pointer-events-auto"
           >
             <div className="flex items-center gap-3 mb-2 justify-center">
               <AlertCircle className="w-5 h-5 text-white" />
@@ -1546,9 +1589,9 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
   // --- Screens & Overlays ---
 
   const renderLobbyScreen = () => (
-    <motion.div key="lobby" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[110] flex items-center justify-center backdrop-blur-3xl bg-berry-dark/95 p-2 sm:p-4">
-       <div className="max-w-md w-full bg-berry-dark/60 border-black border-4 rounded-[48px] p-6 sm:p-8 md:p-14 text-center shadow-[0_40px_100px_black] relative overflow-hidden flex flex-col max-h-[95vh] backdrop-blur-3xl">
-          <button onClick={() => { sounds.playClick(); setGameState(p => ({ ...p, status: 'setup' })); setIsMultiplayer(false); }} className="absolute top-6 left-6 p-2 text-gold/40 hover:text-gold hover:bg-gold/5 rounded-full transition-all">
+    <motion.div key="lobby" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[110] flex items-center justify-center backdrop-blur-3xl bg-brand-maroon/95 p-2 sm:p-4">
+       <div className="max-w-md w-full bg-brand-maroon/60 border-black border-4 rounded-[48px] p-6 sm:p-8 md:p-14 text-center shadow-[0_40px_100px_black] relative overflow-hidden flex flex-col max-h-[95vh] backdrop-blur-3xl">
+          <button onClick={() => { sounds.playClick(); onBack(); }} className="absolute top-6 left-6 p-2 text-gold/40 hover:text-gold hover:bg-gold/5 rounded-full transition-all">
              <ArrowLeft className="w-5 h-5" />
           </button>
           
@@ -1636,29 +1679,41 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
             {effectiveIsHost ? (
                <div className="flex flex-col gap-4">
                  {playersInRoom.length >= 2 && playersInRoom.every(p => p.isConfirmed) ? (
-                   <button 
-                     onClick={() => { sounds.playClick(); startMultiplayer(); }} 
-                     className="w-full py-7 font-black uppercase text-xl rounded-[32px] transition-all relative overflow-hidden shadow-2xl bg-gold text-berry-dark hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] embossed"
-                   >
-                     Start Game
-                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cream/20 to-transparent animate-shimmer" />
-                   </button>
+                   <div className="flex flex-col gap-4">
+                     <span className="text-[10px] font-black text-brand-gold bg-brand-gold/10 px-4 py-2 rounded-full border border-brand-gold/20 animate-pulse">
+                       EVERYONE HAS JOINED! READY TO START.
+                     </span>
+                     <button 
+                       onClick={() => { sounds.playClick(); startMultiplayer(); }} 
+                       className="w-full py-7 font-black uppercase text-xl rounded-[32px] transition-all relative overflow-hidden shadow-2xl bg-gold text-berry-dark hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] embossed"
+                     >
+                       Start Game
+                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cream/20 to-transparent animate-shimmer" />
+                     </button>
+                   </div>
                  ) : (
                    <div className="p-6 bg-gold/5 border border-black rounded-[32px] text-gold/40 text-[10px] font-black uppercase tracking-[0.3em] italic flex flex-col gap-2">
-                     <span>{playersInRoom.length < 2 ? "Waiting for more players..." : "Confirm all players to start"}</span>
+                     <span>WAITING FOR OTHERS TO JOIN...</span>
                      <div className="w-full h-1 bg-black/20 rounded-full overflow-hidden">
                         <motion.div 
                           className="h-full bg-gold/40" 
-                          animate={{ width: `${(playersInRoom.filter(p => p.isConfirmed).length / playersInRoom.length) * 100}%` }} 
+                          animate={{ width: `${(playersInRoom.filter(p => p.isConfirmed).length / (gameState.numPlayers || 2)) * 100}%` }} 
                         />
                      </div>
                    </div>
                  )}
                </div>
             ) : (
-               <div className="p-8 bg-gold/5 border border-black rounded-[32px] text-gold/40 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse italic flex flex-col gap-3 relative overflow-hidden backdrop-blur-md">
+               <div className="p-8 bg-gold/5 border border-black rounded-[32px] text-gold/40 text-[10px] font-black uppercase tracking-[0.3em] italic flex flex-col gap-4 relative overflow-hidden backdrop-blur-md">
                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gold/50" />
-                 <span>Waiting for host to confirm players & start...</span>
+                 {playersInRoom.length >= 2 && playersInRoom.every(p => p.isConfirmed) ? (
+                   <div className="flex flex-col items-center gap-2">
+                     <span className="text-gold font-black">ALL PLAYERS READY</span>
+                     <span className="text-[9px] animate-pulse">WAITING FOR HOST TO START...</span>
+                   </div>
+                 ) : (
+                   <span>WAITING FOR OTHER PLAYERS...</span>
+                 )}
                </div>
             )}
           </div>
@@ -1668,7 +1723,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
 
   const renderSetupScreen = () => {
     return (
-      <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-3xl bg-berry-dark/95 p-2 sm:p-4 md:p-10 relative overflow-hidden">
+      <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-3xl bg-brand-maroon/95 p-2 sm:p-4 md:p-10 relative overflow-hidden">
          {/* Burgundy Waves Background */}
          <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <motion.div 
@@ -1678,7 +1733,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                  scale: [1, 1.05, 1]
                }}
                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-               className="absolute -top-[20%] -left-[10%] w-[120%] h-[120%] bg-berry-dark/40 blur-[80px] rounded-[40%]" 
+               className="absolute -top-[20%] -left-[10%] w-[120%] h-[120%] bg-brand-maroon/40 blur-[80px] rounded-[40%]" 
             />
             <motion.div 
                animate={{ 
@@ -1687,7 +1742,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                  scale: [1.1, 1, 1.1]
                }}
                transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-               className="absolute -bottom-[20%] -right-[10%] w-[130%] h-[130%] bg-berry-dark/30 blur-[100px] rounded-[35%]" 
+               className="absolute -bottom-[20%] -right-[10%] w-[130%] h-[130%] bg-brand-maroon/30 blur-[100px] rounded-[35%]" 
             />
             <motion.div 
                animate={{ 
@@ -1695,20 +1750,29 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                  y: [-10, 10, -10]
                }}
                transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-               className="absolute top-1/4 left-1/4 w-[80%] h-[80%] bg-berry-dark/20 blur-[120px] rounded-[45%]" 
+               className="absolute top-1/4 left-1/4 w-[80%] h-[80%] bg-brand-maroon/20 blur-[120px] rounded-[45%]" 
             />
          </div>
 
-         <div className="max-w-xl w-full bg-berry-dark/90 border-black border-4 rounded-[48px] p-6 sm:p-8 md:p-14 text-center shadow-[0_80px_160px_black] relative overflow-hidden flex flex-col max-h-[95vh] backdrop-blur-3xl z-10">
+         <div className="max-w-xl w-full bg-brand-maroon/90 border-black border-4 rounded-[48px] p-6 sm:p-8 md:p-14 text-center shadow-[0_80px_160px_black] relative overflow-hidden flex flex-col max-h-[95vh] backdrop-blur-3xl z-10">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-gold via-gold-light to-gold animate-gradient" />
+            
+            {setupMode === 'main' && (
+              <button 
+                onClick={() => { sounds.playClick(); onBack(); }} 
+                className="absolute top-6 left-6 p-2 text-gold/40 hover:text-gold hover:bg-gold/5 rounded-full transition-all z-[200] no-theme"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
             
             {/* RELAXED OFFLINE OVERLAY */}
             {isMultiplayer && gameState.status === 'playing' && ((!isOnline && !socketConnected) || (!socketConnected && !isInitializing)) && (
-              <div className="absolute inset-0 z-[200] bg-berry-dark/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8 sm:p-12 text-center">
+              <div className="absolute inset-0 z-[200] bg-brand-maroon/95 backdrop-blur-3xl flex flex-col items-center justify-center p-8 sm:p-12 text-center">
                  <div className="relative mb-10">
                    <div className="relative">
                       <AlertCircle className="w-20 h-20 text-gold animate-pulse" />
-                      <WifiOff className="w-8 h-8 text-gold/40 absolute -bottom-2 -right-2 bg-berry-dark rounded-full p-1 border-2 border-berry-dark" />
+                      <WifiOff className="w-8 h-8 text-gold/40 absolute -bottom-2 -right-2 bg-brand-maroon rounded-full p-1 border-2 border-brand-maroon" />
                    </div>
                    <div className="absolute inset-0 bg-gold/10 blur-3xl animate-ping rounded-full" />
                  </div>
@@ -1877,7 +1941,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                         maxLength={15}
                         value={roomName} 
                         onChange={e => setRoomName(e.target.value.toUpperCase())} 
-                        className="w-full bg-berry-dark/20 border-black border rounded-3xl px-8 py-6 font-black uppercase text-center text-gold text-2xl tracking-[0.4em] outline-none focus:ring-4 focus:ring-gold/10 transition-all placeholder:text-white/5" 
+                        className="w-full bg-brand-maroon/20 border-black border rounded-3xl px-8 py-6 font-black uppercase text-center text-gold text-2xl tracking-[0.4em] outline-none focus:ring-4 focus:ring-gold/10 transition-all placeholder:text-white/5" 
                       />
                     </div>
                   )}
@@ -1901,7 +1965,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                                     updateRoomSettings({ numPlayers: n });
                                   }
                                 }} 
-                                className={cn("aspect-square rounded-2xl flex items-center justify-center font-black text-lg transition-all border-black border-2 shadow-lg embossed-box", gameState.numPlayers === n ? "bg-gold text-berry-dark border-gold-light scale-110 shadow-black" : "bg-white/5 text-gold/20 hover:bg-gold/10 hover:text-gold/40")}
+                                className={cn("aspect-square rounded-2xl flex items-center justify-center font-black text-lg transition-all border-black border-2 shadow-lg embossed-box", gameState.numPlayers === n ? "bg-gold text-brand-maroon border-gold-light scale-110 shadow-black" : "bg-white/5 text-gold/20 hover:bg-gold/10 hover:text-gold/40")}
                               >
                                 {n}
                               </button>
@@ -1930,7 +1994,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                                 }} 
                                 className={cn(
                                   "py-4 rounded-xl font-black text-sm transition-all border-black border-2 shadow-lg uppercase", 
-                                  gameState.maxGames === n ? "bg-gold text-berry-dark border-gold-light" : "bg-white/5 text-gold/20 hover:bg-gold/10"
+                                  gameState.maxGames === n ? "bg-gold text-brand-maroon border-gold-light" : "bg-white/5 text-gold/20 hover:bg-gold/10"
                                 )}
                               >
                                 {n}
@@ -2006,7 +2070,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                          setPlayerName(e.target.value.toUpperCase());
                          setHasEnteredName(false);
                        }} 
-                       className="w-full bg-berry-dark/20 border-black border rounded-3xl px-8 py-5 font-black uppercase text-center text-gold text-2xl tracking-[0.4em] outline-none focus:ring-8 focus:ring-gold/5 transition-all shadow-inner placeholder:text-white/5" 
+                       className="w-full bg-brand-maroon/20 border-black border rounded-3xl px-8 py-5 font-black uppercase text-center text-gold text-2xl tracking-[0.4em] outline-none focus:ring-8 focus:ring-gold/5 transition-all shadow-inner placeholder:text-white/5" 
                      />
                    </div>
 
@@ -2056,8 +2120,8 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                               setSetupMode('multiplayer_settings'); 
                             }} 
                             className={cn(
-                              "h-full bg-berry/10 text-gold/50 rounded-[32px] border border-black font-black uppercase text-[10px] tracking-widest transition-all flex flex-col items-center justify-center gap-2 shadow-xl group",
-                              socketConnected ? "hover:bg-berry/20 cursor-pointer" : "opacity-30 cursor-not-allowed"
+                              "h-full bg-brand-red/10 text-gold/50 rounded-[32px] border border-black font-black uppercase text-[10px] tracking-widest transition-all flex flex-col items-center justify-center gap-2 shadow-xl group",
+                              socketConnected ? "hover:bg-brand-red/20 cursor-pointer" : "opacity-30 cursor-not-allowed"
                             )}
                           >
                             <Shield className="w-5 h-5 text-gold group-hover:scale-110 transition-transform" />
@@ -2071,8 +2135,8 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                               getAvailableRooms();
                             }} 
                             className={cn(
-                              "h-full bg-berry/10 text-gold/50 rounded-[32px] border border-black font-black uppercase text-[10px] tracking-widest transition-all flex flex-col items-center justify-center gap-2 shadow-xl group",
-                              socketConnected ? "hover:bg-berry/20 cursor-pointer" : "opacity-30 cursor-not-allowed"
+                              "h-full bg-brand-red/10 text-gold/50 rounded-[32px] border border-black font-black uppercase text-[10px] tracking-widest transition-all flex flex-col items-center justify-center gap-2 shadow-xl group",
+                              socketConnected ? "hover:bg-brand-red/20 cursor-pointer" : "opacity-30 cursor-not-allowed"
                             )}
                           >
                             <Globe className="w-5 h-5 text-gold group-hover:scale-110 transition-transform" />
@@ -2083,7 +2147,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                               sounds.playClick(); 
                               setSetupMode('main'); 
                             }} 
-                            className="h-full bg-berry/10 text-gold/50 rounded-[32px] border border-black font-black uppercase text-[10px] tracking-widest hover:bg-berry/20 transition-all flex flex-col items-center justify-center gap-2 shadow-xl group cursor-pointer"
+                            className="h-full bg-brand-red/10 text-gold/50 rounded-[32px] border border-black font-black uppercase text-[10px] tracking-widest hover:bg-brand-red/20 transition-all flex flex-col items-center justify-center gap-2 shadow-xl group cursor-pointer"
                           >
                             <ChevronLeft className="w-5 h-5 text-gold group-hover:scale-110 transition-transform" />
                             Back
@@ -2146,20 +2210,20 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       { 
         title: "HOW TO PLAY", 
         text: (
-          <div className="space-y-4 text-left">
-            <p className="text-xl sm:text-2xl font-bold leading-tight">1. Select one or more cards of the same rank to discard before selecting from the deck pile or open card pile.</p>
-            <p className="text-xl sm:text-2xl font-bold leading-tight">2. A Wild Card (shown at start) and Jokers are 0 POINTS.</p>
-            <p className="text-xl sm:text-2xl font-bold leading-tight">3. Lowest score wins round.</p>
-            <p className="text-xl sm:text-2xl font-bold leading-tight">4. Winner of round gets 0 points.</p>
+          <div className="space-y-4 text-left text-gold">
+            <p className="text-xl sm:text-2xl font-bold leading-tight embossed">1. Select one or more cards of the same rank to discard before selecting from the deck pile or open card pile.</p>
+            <p className="text-xl sm:text-2xl font-bold leading-tight embossed">2. A Wild Card (shown at start) and Jokers are 0 POINTS.</p>
+            <p className="text-xl sm:text-2xl font-bold leading-tight embossed">3. Lowest score wins round.</p>
+            <p className="text-xl sm:text-2xl font-bold leading-tight embossed">4. Winner of round gets 0 points.</p>
           </div>
         ),
         preview: (
-          <div className="w-full aspect-video bg-black/40 rounded-3xl p-6 flex flex-col justify-center items-center border border-white/5 shadow-inner">
+          <div className="w-full aspect-video bg-brand-maroon premium-border rounded-3xl p-6 flex flex-col justify-center items-center shadow-inner">
              <div className="flex gap-4">
                 <div className="w-10 h-14 bg-white rounded-lg border-2 border-black flex items-center justify-center text-black font-black">5</div>
                 <div className="w-10 h-14 bg-white rounded-lg border-2 border-black flex items-center justify-center text-black font-black">5</div>
              </div>
-             <div className="mt-4 text-[10px] font-black text-gold uppercase underline decoration-gold/50 underline-offset-4">MATCH & DISCARD</div>
+             <div className="mt-4 text-[10px] font-black text-gold uppercase underline decoration-gold/50 underline-offset-4 embossed">MATCH & DISCARD</div>
           </div>
         )
       },
@@ -2167,18 +2231,18 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
         title: "CARD VALUES", 
         text: "Aces = 1 POINT. Numbers (2-10) = Face value. J, Q, K = 10 POINTS. Joker (JK) and the Wild Card (drawn at start) = 0 POINTS!",
         preview: (
-          <div className="w-full aspect-video bg-black/40 rounded-3xl p-4 flex justify-around items-center border border-white/5 shadow-inner">
+          <div className="w-full aspect-video bg-brand-maroon premium-border rounded-3xl p-4 flex justify-around items-center shadow-inner">
              <div className="flex flex-col items-center gap-1">
                 <div className="w-10 h-14 bg-white rounded-lg flex items-center justify-center text-black font-black text-lg shadow-lg border-2 border-black">A</div>
-                <span className="text-[8px] font-black text-gold">1 POINT</span>
+                <span className="text-[8px] font-black text-gold embossed">1 POINT</span>
              </div>
              <div className="flex flex-col items-center gap-1">
                 <div className="w-10 h-14 bg-white rounded-lg flex items-center justify-center text-red-600 font-black text-lg shadow-lg border-2 border-black">K</div>
-                <span className="text-[8px] font-black text-gold">10 POINTS</span>
+                <span className="text-[8px] font-black text-gold embossed">10 POINTS</span>
              </div>
              <div className="flex flex-col items-center gap-1 scale-110">
-                <div className="w-10 h-14 bg-gold rounded-lg flex items-center justify-center text-berry-dark font-black text-lg shadow-lg border-2 border-black">★</div>
-                <span className="text-[8px] font-black text-gold">0 POINTS</span>
+                <div className="w-10 h-14 bg-gold rounded-lg flex items-center justify-center text-brand-maroon font-black text-lg shadow-lg border-2 border-black">★</div>
+                <span className="text-[8px] font-black text-gold embossed">0 POINTS</span>
              </div>
           </div>
         )
@@ -2187,16 +2251,16 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
         title: "TURN FLOW", 
         text: "Each turn: 1. Discard one or more cards of the same rank. 2. Draw ONE card from the deck or the discard pile.",
         preview: (
-          <div className="w-full aspect-video bg-black/40 rounded-3xl p-6 flex justify-center items-center gap-6 border border-white/5 shadow-inner">
+          <div className="w-full aspect-video bg-brand-maroon premium-border rounded-3xl p-6 flex justify-center items-center gap-6 shadow-inner">
              <div className="flex flex-col items-center gap-2">
-                <div className="w-14 h-20 bg-gold/10 border-2 border-dashed border-gold/30 rounded-xl flex items-center justify-center text-gold/30 text-[8px] font-black uppercase">Discard</div>
-                <span className="text-[8px] font-black text-gold/40">STEP 1</span>
+                <div className="w-14 h-20 bg-gold/10 border-2 border-dashed border-gold/30 rounded-xl flex items-center justify-center text-gold/30 text-[8px] font-black uppercase embossed">Discard</div>
+                <span className="text-[8px] font-black text-gold/40 embossed">STEP 1</span>
              </div>
              <div className="flex flex-col items-center gap-2">
-                     <div className="w-14 h-20 bg-berry-dark border-2 border-white/10 rounded-xl shadow-xl flex items-center justify-center">
-                   <div className="w-8 h-12 bg-white/5 rounded-md border border-white/10" />
+                     <div className="w-14 h-20 bg-brand-red border-2 border-brand-gold/20 rounded-xl shadow-xl flex items-center justify-center">
+                   <div className="w-8 h-12 bg-white/5 rounded-md border border-brand-gold/10" />
                 </div>
-                <span className="text-[8px] font-black text-gold/40">STEP 2</span>
+                <span className="text-[8px] font-black text-gold/40 embossed">STEP 2</span>
              </div>
           </div>
         )
@@ -2205,8 +2269,8 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
         title: "DECK IT!", 
         text: "From Round 5, you can 'Deck It' if you think you have the fewest points. Calling Deck starts a 5-second challenge phase.",
         preview: (
-          <div className="w-full aspect-video bg-black/40 rounded-3xl p-6 flex flex-col justify-center items-center border border-white/5 shadow-inner">
-             <div className="px-6 py-2 bg-gold text-berry-dark font-black rounded-full uppercase text-[10px] tracking-widest shadow-2xl mb-2">
+          <div className="w-full aspect-video bg-brand-maroon premium-border rounded-3xl p-6 flex flex-col justify-center items-center shadow-inner">
+             <div className="px-6 py-2 bg-gold text-brand-maroon font-black rounded-full uppercase text-[10px] tracking-widest shadow-2xl mb-2 embossed no-theme">
                 DECK IT!
              </div>
              <div className="flex gap-2">
@@ -2214,7 +2278,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                   <div key={`tutorial-deck-tick-${i}`} className={cn("w-4 h-1 bg-gold", i > 3 && "opacity-20")} />
                 ))}
              </div>
-             <div className="mt-4 text-[8px] font-black text-gold/30 uppercase tracking-[0.2em]">5 SECONDS TO CHALLENGE</div>
+             <div className="mt-4 text-[8px] font-black text-gold/30 uppercase tracking-[0.2em] embossed">5 SECONDS TO CHALLENGE</div>
           </div>
         )
       },
@@ -2222,13 +2286,13 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
         title: "WRONG DECK!", 
         text: "If someone calls 'Deck', and you have LOWER points, tap 'WRONG DECK'! The decker gets a 50 POINTS penalty, and YOU get 0 POINTS for the round. Others get their hand points.",
         preview: (
-          <div className="w-full aspect-video bg-black/40 rounded-3xl p-6 flex flex-col justify-center items-center border border-white/5 shadow-inner">
-             <div className="px-6 py-2 bg-berry-dark text-white border-2 border-berry-pink font-black rounded-full uppercase text-[10px] tracking-widest shadow-2xl mb-4 animate-pulse">
+          <div className="w-full aspect-video bg-brand-maroon premium-border rounded-3xl p-6 flex flex-col justify-center items-center shadow-inner">
+             <div className="px-6 py-2 bg-brand-red text-white border-2 border-gold font-black rounded-full uppercase text-[10px] tracking-widest shadow-2xl mb-4 animate-pulse embossed no-theme">
                 WRONG DECK!
              </div>
              <div className="text-center">
-                <p className="text-[10px] text-white/50 font-black uppercase">Decker: 3 POINTS</p>
-                <p className="text-[10px] text-berry-pink font-black uppercase italic">You: 1 POINT (WINNER!)</p>
+                <p className="text-[10px] text-gold/50 font-black uppercase embossed">Decker: 3 POINTS</p>
+                <p className="text-[10px] text-gold font-black uppercase italic embossed">You: 1 POINT (WINNER!)</p>
              </div>
           </div>
         )
@@ -2257,16 +2321,16 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
     };
 
     return (
-      <motion.div key="tutorial" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-berry-dark/98 backdrop-blur-3xl flex items-center justify-center p-6">
-        <div className="max-w-xl w-full bg-berry-dark/80 border-black border-4 rounded-[60px] p-8 sm:p-12 text-center relative shadow-[0_0_100px_black] overflow-hidden">
+      <motion.div key="tutorial" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[300] bg-brand-maroon/95 backdrop-blur-3xl flex items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-brand-maroon/90 premium-border rounded-[60px] p-8 sm:p-12 text-center relative shadow-[0_0_100px_black] overflow-hidden">
            <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
               <motion.div initial={{ width: 0 }} animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }} className="h-full bg-gold shadow-[0_0_10px_gold]" />
            </div>
            
            <div className="mb-10 mt-4 flex items-center justify-between">
               <div className="text-left">
-                 <h2 className="text-4xl font-black italic text-gold uppercase leading-none">Tutorial</h2>
-                 <p className="text-[10px] font-black text-gold/30 uppercase tracking-[0.4em] mt-2">Step {currentStep + 1} of {steps.length}</p>
+                 <h2 className="text-4xl font-black italic text-gold uppercase leading-none embossed">Tutorial</h2>
+                 <p className="text-[10px] font-black text-gold/50 uppercase tracking-[0.4em] mt-2 embossed">Step {currentStep + 1} of {steps.length}</p>
               </div>
               <button 
                 onClick={() => {
@@ -2275,7 +2339,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                   setHasVisited(true);
                   setShowTutorial(false);
                 }} 
-                className="p-4 bg-white/5 rounded-full text-gold/50 hover:text-gold transition-colors"
+                className="p-4 bg-brand-maroon rounded-full text-gold/50 hover:text-gold transition-colors premium-border no-theme"
               >
                 <X />
               </button>
@@ -2293,26 +2357,28 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                     {steps[currentStep].preview}
                  </div>
                  <div className="text-left space-y-3">
-                    <h4 className="text-gold font-black uppercase text-xs tracking-[0.3em]">{steps[currentStep].title}</h4>
-                    <p className="text-gold/60 text-sm leading-relaxed min-h-[60px]">{steps[currentStep].text}</p>
+                    <h4 className="text-gold font-black uppercase text-xs tracking-[0.3em] embossed">{steps[currentStep].title}</h4>
+                    <div className="text-gold/80 text-sm leading-relaxed min-h-[60px] embossed">{steps[currentStep].text}</div>
                  </div>
               </motion.div>
            </AnimatePresence>
            
            <div className="flex gap-4 mt-10">
               {currentStep > 0 && (
-                <button onClick={prev} className="flex-1 py-8 bg-white/5 text-gold font-black uppercase rounded-3xl text-sm border border-black shadow-xl">BACK</button>
+                <button onClick={prev} className="flex-1 py-8 bg-brand-maroon text-gold font-black uppercase rounded-3xl text-sm border-2 border-brand-gold/30 shadow-xl no-theme">
+                  <span className="embossed">BACK</span>
+                </button>
               )}
-              <button onClick={next} className="flex-[2] py-8 bg-gold text-berry-dark font-black uppercase rounded-3xl text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-gold/20 embossed">
-                 {currentStep === steps.length - 1 ? "LET'S PLAY!" : "CONTINUE"}
+              <button onClick={next} className="flex-[2] py-8 bg-brand-gold text-brand-red font-black uppercase rounded-3xl text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-gold/20 no-theme">
+                 <span className="embossed">{currentStep === steps.length - 1 ? "LET'S PLAY!" : "CONTINUE"}</span>
               </button>
            </div>
 
            <button 
              onClick={finalizeTutorial}
-             className="w-full mt-6 py-4 text-gold/40 hover:text-gold font-black uppercase text-[10px] tracking-widest transition-all"
+             className="w-full mt-6 py-4 text-gold/40 hover:text-gold font-black uppercase text-[10px] tracking-widest transition-all no-theme"
            >
-             Skip to Main Menu
+             <span className="embossed">Skip to Main Menu</span>
            </button>
         </div>
       </motion.div>
@@ -2322,7 +2388,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
 
 
   const renderAvailableRoomsScreen = () => (
-    <motion.div key="available_rooms" initial={{ x: '100%' }} animate={{ x: 0 }} className="fixed inset-0 z-[120] bg-berry-dark flex flex-col p-6 safe-top safe-bottom">
+    <motion.div key="available_rooms" initial={{ x: '100%' }} animate={{ x: 0 }} className="fixed inset-0 z-[120] bg-brand-maroon flex flex-col p-6 safe-top safe-bottom">
        <div className="flex items-center justify-between mb-10 mt-4">
           <button onClick={() => { sounds.playClick(); setSetupMode('multiplayer'); }} className="p-4 bg-white/5 rounded-full text-gold"><ArrowLeft /></button>
           <h2 className="text-2xl font-black italic uppercase text-gold">Public Tables</h2>
@@ -2380,28 +2446,35 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       : (gameState.currentPlayerIndex === 0);
 
     const handValue = calculateHandValue(me.hand, gameState.jokerRank);
+    const canDeck = Math.floor(gameState.roundCount) >= 5 || handValue === 0;
+    const isDecker = gameState.deckingPlayerId === me.id;
 
     return (
-      <div className="w-full flex flex-col items-center gap-4 bg-black/30 backdrop-blur-3xl pt-4 pb-8 px-4 rounded-t-[48px] border-t border-white/5 shadow-[0_-20px_60px_rgba(0,0,0,0.5)]">
+      <div className="w-full flex flex-col items-center gap-4 bg-brand-maroon/90 backdrop-blur-xl pt-4 pb-8 px-4 rounded-t-[48px] premium-border border-x-0 border-b-0 shadow-[0_-20px_60px_rgba(0,0,0,0.5)]">
          {/* Bottom Action Footer */}
-         <div className="w-full max-w-lg mb-2">
-            <div className="flex items-center justify-between p-4 bg-[#2a0404] rounded-[32px] border border-white/5 shadow-inner">
+         <div className="w-full max-w-lg mb-1">
+            <div className="flex items-center justify-between p-3 sm:p-4 bg-brand-red/80 rounded-[24px] sm:rounded-[32px] premium-border shadow-inner">
                <div className="flex flex-col">
                   <div className="flex items-center gap-2">
-                    <div className={cn("w-2 h-2 rounded-full", isMyTurn ? "bg-gold animate-pulse" : "bg-white/10")} />
-                    <span className="text-[12px] font-black text-white/40 uppercase tracking-widest">YOUR TURN!</span>
+                    <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_8px_rgba(212,175,55,0.6)]", isMyTurn ? "bg-gold animate-pulse" : "bg-white/10")} />
+                    <span className="text-[10px] sm:text-[12px] font-black text-white/60 uppercase tracking-widest embossed">{isMyTurn ? "YOUR TURN" : "WAITING..."}</span>
                   </div>
-                  <span className="text-[10px] font-black text-gold uppercase tracking-[0.2em] leading-tight mt-1">MAKE YOUR MOVE</span>
+                  <span className="text-[9px] sm:text-[10px] font-black text-gold uppercase tracking-[0.2em] leading-tight mt-0.5 embossed">
+                    {isMyTurn ? "MAKE YOUR MOVE" : `${currentPlayer?.name || 'PLAYER'}'S TURN`}
+                  </span>
                </div>
                
                <div className="flex flex-col items-end">
-                 <span className="text-3xl font-black italic tracking-tighter text-gold leading-none">{handValue} POINTS</span>
+                  <div className="flex items-center gap-2">
+                    {handValue === 0 && <Zap className="w-3 h-3 text-gold fill-gold animate-bounce" />}
+                    <span className="text-2xl sm:text-3xl font-black italic tracking-tighter text-gold leading-none embossed">{handValue} POINTS</span>
+                  </div>
                </div>
             </div>
          </div>
 
          {/* Hand Display */}
-         <div className="relative flex justify-center -space-x-12 sm:-space-x-20 md:-space-x-24 h-24 sm:h-32 md:h-40 items-end pb-1 w-full overflow-x-auto no-scrollbar px-10">
+         <div className="relative flex items-end justify-center gap-3 sm:gap-4 md:gap-6 h-24 sm:h-32 md:h-40 pb-2 w-full overflow-x-auto no-scrollbar px-6">
             <LayoutGroup>
               {me.hand.map((card, cIdx) => (
                 <motion.div
@@ -2454,8 +2527,8 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                 onClick={(e) => { e.preventDefault(); handleWrongDeck(); }} 
                 disabled={calculateHandValue(me.hand, gameState.jokerRank) >= (gameState.deckingValue || 0) || me.id === gameState.deckingPlayerId}
                 className={cn(
-                 "flex-1 h-12 rounded-[24px] bg-berry-dark text-white font-extrabold uppercase text-[10px] transition-all shadow-xl active:scale-95 border-2 border-berry animate-pulse break-words px-2",
-                 (calculateHandValue(me.hand, gameState.jokerRank) >= (gameState.deckingValue || 0) || me.id === gameState.deckingPlayerId) ? "opacity-20 grayscale cursor-not-allowed" : "hover:scale-[1.05] cursor-pointer bg-berry"
+                 "flex-1 h-12 rounded-[24px] bg-brand-maroon text-white font-extrabold uppercase text-[10px] transition-all shadow-xl active:scale-95 border-2 border-brand-red animate-pulse break-words px-2",
+                 (calculateHandValue(me.hand, gameState.jokerRank) >= (gameState.deckingValue || 0) || me.id === gameState.deckingPlayerId) ? "opacity-20 grayscale cursor-not-allowed" : "hover:scale-[1.05] cursor-pointer bg-brand-red"
                 )}
               >
                 WRONG DECK!
@@ -2466,25 +2539,25 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                   onClick={(e) => { e.preventDefault(); discardCards(); }} 
                   disabled={!isMyTurn || selectedCards.length === 0 || hasDiscardedThisTurn}
                   className={cn(
-                    "flex-1 h-14 rounded-[28px] font-black uppercase text-sm tracking-widest transition-all shadow-xl active:scale-95 border-b-[6px]",
+                    "flex-1 h-16 sm:h-20 rounded-[28px] sm:rounded-[40px] font-black uppercase text-lg tracking-widest transition-all shadow-xl active:scale-95 border-b-[6px] no-theme",
                      (!isMyTurn || selectedCards.length === 0 || hasDiscardedThisTurn) 
-                       ? "bg-black/40 text-white/10 border-black grayscale scale-[0.98]" 
-                       : "bg-gold text-berry-dark hover:scale-[1.02] border-amber-500 hover:bg-gold-light"
+                       ? "bg-black/40 text-brand-gold/10 border-black grayscale scale-[0.98]" 
+                       : "bg-brand-gold text-brand-red border-amber-500 hover:bg-brand-gold/90"
                   )}
                 >
-                  Discard
+                  <span className="embossed">Discard</span>
                 </button>
                 <button 
                   onClick={(e) => { e.preventDefault(); handleDeckIt(); }} 
-                  disabled={!isMyTurn || hasDiscardedThisTurn || Math.floor(gameState.roundCount) < 5 || (setupMode === 'solo' && gameState.currentPlayerIndex > 0)} 
+                  disabled={!isMyTurn || hasDiscardedThisTurn || (!canDeck && handValue > 0) || (setupMode === 'solo' && gameState.currentPlayerIndex > 0)} 
                   className={cn(
-                    "flex-1 h-14 rounded-[28px] font-black uppercase text-sm tracking-widest transition-all shadow-xl active:scale-95 border-b-[6px]",
-                    (!isMyTurn || hasDiscardedThisTurn || Math.floor(gameState.roundCount) < 5 || (setupMode === 'solo' && gameState.currentPlayerIndex > 0)) 
-                      ? "bg-black/40 text-white/10 border-black grayscale scale-[0.98]" 
-                      : "bg-gold text-berry-dark hover:scale-[1.02] border-amber-500 hover:bg-gold-light"
+                    "flex-1 h-16 sm:h-20 rounded-[28px] sm:rounded-[40px] font-black uppercase text-lg tracking-widest transition-all shadow-xl active:scale-95 border-b-[6px] no-theme",
+                    (!isMyTurn || hasDiscardedThisTurn || (!canDeck && handValue > 0) || (setupMode === 'solo' && gameState.currentPlayerIndex > 0)) 
+                      ? "bg-black/40 text-brand-gold/10 border-black grayscale scale-[0.98]" 
+                      : "bg-brand-red text-brand-gold border-brand-gold/40 hover:brightness-125 animate-pulse"
                   )}
                 >
-                  Deck It!
+                  <span className="embossed">{ (canDeck || handValue === 0) ? "Deck It!" : "Locked (Rnd 5)"}</span>
                 </button>
               </>
             )}
@@ -2494,7 +2567,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
   };
 
   return (
-    <div className={cn("fixed inset-0 font-sans overflow-x-hidden overflow-y-auto bg-berry-dark text-cream select-none")}>
+    <div className={cn("fixed inset-0 font-sans overflow-x-hidden overflow-y-auto bg-brand-maroon text-cream select-none")}>
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -2507,7 +2580,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       {/* Immersive Background System */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
          <div className="absolute top-[-30%] left-[-20%] w-[100%] h-[100%] bg-gold/5 blur-[200px] rounded-full animate-pulse opacity-40" />
-         <div className="absolute bottom-[-30%] right-[-20%] w-[90%] h-[90%] bg-berry/5 blur-[200px] rounded-full animate-pulse opacity-40" style={{ animationDelay: '3s' }} />
+         <div className="absolute bottom-[-30%] right-[-20%] w-[90%] h-[90%] bg-brand-red/5 blur-[200px] rounded-full animate-pulse opacity-40" style={{ animationDelay: '3s' }} />
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.05] mix-blend-overlay" />
       </div>
 
@@ -2518,6 +2591,9 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
           isMultiplayer={isMultiplayer} 
           socketConnected={socketConnected}
           onBack={handleBackToMenu}
+          currentRound={Math.floor(gameState.roundCount)}
+          currentGame={gameState.gameCount}
+          maxGames={gameState.maxGames}
         />
         
         {renderTutorialGuidance()}
@@ -2599,21 +2675,30 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                 {/* Main Action Hub */}
                 <div className="flex items-center gap-6 sm:gap-14 px-10 py-10 bg-white/[0.03] rounded-[40px] border border-black backdrop-blur-3xl relative shadow-[0_40px_80px_black]">
                    
-                    {/* Discard Pile (Open Pile) */}
+                     {/* Discard Pile (Open Pile) */}
                     <div className="flex flex-col items-center relative">
-                       <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[12px] sm:text-[14px] font-black text-gold uppercase tracking-[0.2em] embossed whitespace-nowrap">OPEN PILE</span>
+                       <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[12px] sm:text-[14px] font-black text-brand-gold uppercase tracking-[0.2em] embossed whitespace-nowrap">OPEN PILE</span>
                        <div className="relative group">
-                         {(gameState.availableCardAtTurnStart || gameState.openCard) ? (
+                         {/* Stacked visualization: Bottom is new discard, Top is available card */}
+                         {hasDiscardedThisTurn && justDiscardedCard && (
+                            <div className="absolute top-2 left-2 rotate-6 opacity-40">
+                               <Card 
+                                 card={justDiscardedCard} 
+                                 className="scale-[0.8] sm:scale-[0.9] grayscale" 
+                               />
+                            </div>
+                         )}
+                         {(hasDiscardedThisTurn ? gameState.availableCardAtTurnStart : gameState.openCard) ? (
                            <Card 
-                             card={gameState.availableCardAtTurnStart || gameState.openCard!} 
+                             card={(hasDiscardedThisTurn ? (gameState.availableCardAtTurnStart || gameState.openCard) : gameState.openCard)!} 
                              onClick={drawFromDiscard} 
                              className={cn(
                                "shadow-2xl transition-all active:scale-95 z-20 scale-[0.9] sm:scale-[1.1]", 
-                               hasDiscardedThisTurn && "ring-4 ring-gold/40 scale-[1] sm:scale-[1.2] shadow-gold/20"
+                               hasDiscardedThisTurn && "ring-4 ring-brand-gold/60 scale-[1.05] sm:scale-[1.25] shadow-gold/40"
                              )} 
                            />
                          ) : (
-                           <div className="w-14 h-20 border-2 border-dashed border-black/30 rounded-xl flex items-center justify-center text-[7px] font-black text-white/5 uppercase tracking-widest italic bg-black/40 scale-[0.9] sm:scale-110">EMPTY</div>
+                           <div className="w-14 h-20 border-2 border-dashed border-brand-gold/30 rounded-xl flex items-center justify-center text-[7px] font-black text-white/5 uppercase tracking-widest italic bg-black/40 scale-[0.9] sm:scale-110">EMPTY</div>
                          )}
                          {gameState.discardPile.length > 1 && (
                            <>
@@ -2666,11 +2751,11 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
       </div>
         <AnimatePresence>
           {isInitializing && (
-            <motion.div key="initializing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] bg-berry-dark flex flex-col items-center justify-center gap-6 text-center">
+            <motion.div key="initializing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] bg-brand-maroon flex flex-col items-center justify-center gap-6 text-center">
               <motion.div 
                 animate={{ rotate: 360 }} 
                 transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                className="w-20 h-20 border-8 border-gold/20 border-t-gold rounded-full shadow-[0_0_40px_rgba(255,215,0,0.2)]"
+                className="w-20 h-20 border-8 border-brand-gold/20 border-t-brand-gold rounded-full shadow-[0_0_40px_rgba(255,215,0,0.2)]"
               />
               <div className="flex flex-col items-center gap-4">
                 <span className="text-2xl font-black uppercase tracking-[0.8em] text-gold animate-pulse">Survival</span>
@@ -2682,8 +2767,8 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
         {showTutorial && renderTutorial()}
         <AnimatePresence mode="wait">
           {showRules && (
-            <motion.div key="basic-rules" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[700] bg-berry-dark/98 backdrop-blur-3xl flex items-center justify-center p-6 text-center">
-              <div className="max-w-2xl w-full bg-berry-dark border-4 border-gold rounded-[60px] p-8 sm:p-12 overflow-y-auto max-h-[90vh] custom-scrollbar shadow-[0_0_150px_black] relative">
+            <motion.div key="basic-rules" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[700] bg-brand-maroon/98 backdrop-blur-3xl flex items-center justify-center p-6 text-center">
+              <div className="max-w-2xl w-full bg-brand-maroon border-4 border-gold rounded-[60px] p-8 sm:p-12 overflow-y-auto max-h-[90vh] custom-scrollbar shadow-[0_0_150px_black] relative">
                  <div className="flex justify-between items-center mb-8 relative z-10">
                     <div className="text-left">
                        <h2 className="text-4xl font-black italic text-gold uppercase tracking-tighter leading-none embossed-gold">BASIC RULES</h2>
@@ -2736,7 +2821,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
         <AnimatePresence>
           {showWildCardWarning && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[700] bg-black/90 backdrop-blur-3xl flex items-center justify-center p-8">
-              <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="max-w-sm w-full bg-berry-dark border-4 border-gold rounded-[40px] p-10 text-center shadow-[0_0_100px_rgba(212,175,55,0.3)]">
+              <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="max-w-sm w-full bg-brand-maroon border-4 border-gold rounded-[40px] p-10 text-center shadow-[0_0_100px_rgba(212,175,55,0.3)]">
                  <div className="w-20 h-20 bg-gold rounded-full flex items-center justify-center mx-auto mb-6">
                     <AlertCircle className="w-10 h-10 text-berry-dark" />
                  </div>
@@ -2763,15 +2848,15 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
              className="fixed inset-0 z-[650] bg-black/95 flex items-center justify-center p-6 backdrop-blur-3xl" 
              onClick={() => setShowSettings(false)}
            >
-              <div onClick={e => e.stopPropagation()} className="max-w-md w-full bg-berry-dark border border-white/10 p-10 sm:p-16 rounded-[60px] sm:rounded-[80px] text-center shadow-[0_0_100px_black] backdrop-blur-3xl">
+              <div onClick={e => e.stopPropagation()} className="max-w-md w-full bg-brand-maroon border border-white/10 p-10 sm:p-16 rounded-[60px] sm:rounded-[80px] text-center shadow-[0_0_100px_black] backdrop-blur-3xl">
                  <h3 className="text-3xl font-black mb-12 uppercase italic">Settings</h3>
                  <div className="grid grid-cols-1 gap-8 mb-12">
-                                        <button onClick={() => { sounds.playClick(); sounds.unlockAudio(); setIsMuted(!isMuted); }} className={cn("p-8 sm:p-12 rounded-[40px] sm:rounded-[50px] border-black border-2 flex flex-col items-center gap-5 transition-all active:scale-95 shadow-xl", isMuted ? "bg-berry/10 text-gold/20" : "bg-gold text-berry-dark")}>{isMuted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}<span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Audio</span></button>
+                                        <button onClick={() => { sounds.playClick(); sounds.unlockAudio(); setIsMuted(!isMuted); }} className={cn("p-8 sm:p-12 rounded-[40px] sm:rounded-[50px] border-black border-2 flex flex-col items-center gap-5 transition-all active:scale-95 shadow-xl", isMuted ? "bg-brand-red/10 text-gold/20" : "bg-gold text-brand-maroon")}>{isMuted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}<span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Audio</span></button>
                  </div>
 
                      <button 
                       onClick={handleBackToMenu} 
-                      className="w-full py-6 bg-berry text-white font-black uppercase rounded-[32px] border-2 border-black shadow-lg"
+                      className="w-full py-6 bg-brand-red text-white font-black uppercase rounded-[32px] border-2 border-black shadow-lg"
                     >
                       Back to Menu
                     </button>
@@ -2787,9 +2872,9 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[620] bg-berry-dark/98 backdrop-blur-3xl flex items-center justify-center p-6"
+              className="fixed inset-0 z-[620] bg-brand-maroon/98 backdrop-blur-3xl flex items-center justify-center p-6"
             >
-              <div className="max-xl w-full space-y-8 relative p-10 bg-berry-dark/60 border-gold border-4 rounded-[48px] backdrop-blur-3xl shadow-[0_0_150px_black] overflow-hidden">
+              <div className="max-xl w-full space-y-8 relative p-10 bg-brand-maroon/60 border-gold border-4 rounded-[48px] backdrop-blur-3xl shadow-[0_0_150px_black] overflow-hidden">
                 <div className="flex justify-between items-center mb-2">
                    <h2 className="text-5xl font-black italic text-gold uppercase tracking-tighter embossed-gold">PRO TIPS</h2>
                    <button 
@@ -2837,11 +2922,11 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
           )}
         </AnimatePresence>
           {gameState.status === 'round_over' && (
-            <motion.div key="round_over" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[250] flex items-center justify-center bg-berry-dark/98 p-4 sm:p-6 text-center">
+            <motion.div key="round_over" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[250] flex items-center justify-center bg-brand-maroon/98 p-4 sm:p-6 text-center">
                <motion.div 
                  initial={{ scale: 0.9, opacity: 0 }} 
                  animate={{ scale: 1, opacity: 1 }} 
-                 className="max-w-2xl w-full bg-berry-dark/90 border-black border-4 rounded-[60px] p-8 sm:p-12 text-cream relative shadow-[0_40px_100px_black] backdrop-blur-3xl flex flex-col max-h-[92vh] overflow-hidden"
+                 className="max-w-2xl w-full bg-brand-maroon/90 border-black border-4 rounded-[60px] p-8 sm:p-12 text-cream relative shadow-[0_40px_100px_black] backdrop-blur-3xl flex flex-col max-h-[92vh] overflow-hidden"
                >
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 no-scrollbar">
                     <Trophy className="w-12 h-12 mx-auto mb-6 text-gold" />
@@ -2908,7 +2993,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
                           Haptics.notification({ type: NotificationType.Success }).catch(() => {});
                           initGame(gameState.numPlayers, gameState.maxGames, gameState.players, gameState.gameCount, gameState.startingPlayerIndex);
                         }} 
-                        className="flex-1 py-10 bg-gold text-berry-dark font-black uppercase text-3xl rounded-[40px] shadow-[0_30px_80px_black] hover:bg-gold-light hover:-translate-y-1 active:translate-y-0.5 transition-all outline-none border-t-2 border-gold-light/40"
+                        className="flex-1 py-10 bg-gold text-brand-maroon font-black uppercase text-3xl rounded-[40px] shadow-[0_30px_80px_black] hover:bg-gold-light hover:-translate-y-1 active:translate-y-0.5 transition-all outline-none border-t-2 border-gold-light/40"
                       >
                         NEXT ROUND →
                       </button>
@@ -2922,7 +3007,7 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
             </motion.div>
          )}
          {gameState.status === 'final_results' && (
-            <motion.div key="final_results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[255] flex items-center justify-center bg-berry-dark p-6 text-center">
+            <motion.div key="final_results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[255] flex items-center justify-center bg-brand-maroon p-6 text-center">
                <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="max-w-xl w-full">
                    <div className="relative mb-10">
                       <div className="bg-gold rounded-full w-24 h-24 flex items-center justify-center mx-auto shadow-[0_0_50px_var(--color-gold)] relative z-10">
@@ -2993,5 +3078,5 @@ export const GameBoard: React.FC<{ playerCount?: number, maxRounds?: number, pla
 };
 
 export const MultiplayerGame: React.FC<{ roomId: string, isHost: boolean, onBack: () => void }> = ({ roomId, isHost, onBack }) => {
-  return <GameBoard onBack={onBack} />;
+  return <GameBoard onBack={onBack} roomId={roomId} initialIsMultiplayer={true} />;
 };

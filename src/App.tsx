@@ -27,22 +27,23 @@ export default function App() {
     setView('game');
   };
 
-  const handleStartMultiplayer = () => {
+  const handleStartMultiplayer = (playerName?: string) => {
+    setGameSetup(prev => ({ ...prev, players: 2, rounds: 5, playerName }));
     setView('multiplayer_setup');
   };
 
-  const handleCreateRoom = async (rounds: number) => {
-    const roomId = await createRoom(rounds);
+  const handleCreateRoom = async (roomName: string, rounds: number, maxPlayers: number, playerName?: string) => {
+    const roomId = await createRoom(roomName, rounds, maxPlayers, playerName);
     if (roomId) {
-      setGameSetup({ players: 1, rounds, roomId, isHost: true });
+      setGameSetup({ players: maxPlayers, rounds, roomId, isHost: true, playerName });
       setView('multiplayer_game');
     }
   };
 
-  const handleJoinRoom = async (roomId: string) => {
-    const success = await joinRoom(roomId);
+  const handleJoinRoom = async (roomId: string, playerName?: string) => {
+    const success = await joinRoom(roomId, playerName);
     if (success) {
-      setGameSetup({ players: 2, rounds: 5, roomId, isHost: false });
+      setGameSetup({ players: 2, rounds: 5, roomId, isHost: false, playerName });
       setView('multiplayer_game');
     }
   };
@@ -85,6 +86,7 @@ export default function App() {
            onBack={handleBackToHome}
            onCreateRoom={handleCreateRoom}
            onJoinRoom={handleJoinRoom}
+           initialPlayerName={gameSetup?.playerName}
         />
       )}
 

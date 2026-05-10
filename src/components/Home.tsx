@@ -10,7 +10,7 @@ import logoImg from '../assets/images/regenerated_image_1778248576867.jpg';
 interface HomeProps {
   isTutorialComplete: boolean;
   onStartSinglePlayer: (players: number, rounds: number, playerName: string) => void;
-  onStartMultiplayer: () => void;
+  onStartMultiplayer: (playerName: string) => void;
   onShowTutorial: () => void;
 }
 
@@ -52,15 +52,31 @@ const Home: React.FC<HomeProps> = ({
     filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.4))'
   };
 
+  const WaveText: React.FC<{ text: string }> = ({ text }) => {
+    return (
+      <>
+        {text.split('').map((char, i) => (
+          <span 
+            key={i} 
+            className={cn("wave-letter", char === ' ' ? "mr-[0.2em]" : "")}
+            style={{ animationDelay: `${i * 0.1}s` }}
+          >
+            {char === ' ' ? '\u00A0' : char}
+          </span>
+        ))}
+      </>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-[#2a0404] flex flex-col items-center justify-start pt-12 pb-12 px-8 relative overflow-x-hidden overflow-y-auto no-scrollbar">
+    <div className="min-h-screen bg-brand-maroon flex flex-col items-center justify-start pt-12 pb-12 px-8 relative overflow-x-hidden overflow-y-auto no-scrollbar">
       {/* Background Gradient / Glow */}
       <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-brand-red/30 blur-[140px] rounded-full pointer-events-none opacity-40" />
       
       {/* Main Container */}
       <div className="max-w-md w-full z-10 flex flex-col items-center">
         {/* Logo Area */}
-        <div className="w-56 h-56 bg-brand-maroon border-[4px] border-brand-gold/10 rounded-[48px] flex flex-col items-center justify-center mb-8 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_40px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+        <div className="w-56 h-56 bg-brand-maroon premium-border rounded-[48px] flex flex-col items-center justify-center mb-8 shadow-[0_30px_60px_rgba(0,0,0,0.8),inset_0_0_40px_rgba(0,0,0,0.5)] relative overflow-hidden group">
            <div className="absolute inset-0 bg-linear-to-b from-white/10 to-transparent pointer-events-none" />
            <img 
              src={logoImg} 
@@ -83,7 +99,7 @@ const Home: React.FC<HomeProps> = ({
              >
                SURVIVAL OF <br/> THE LOWEST
              </motion.h2>
-             <p className="text-brand-gold font-black text-[10px] uppercase tracking-[0.4em] pt-4 italic opacity-40 break-words text-center">CHOOSE MODE</p>
+             <p className="text-gold-bright font-black text-[12px] uppercase tracking-[0.4em] pt-4 italic break-words text-center embossed">CHOOSE MODE</p>
           </div>
         </div>
 
@@ -96,28 +112,27 @@ const Home: React.FC<HomeProps> = ({
               exit={{ opacity: 0, y: -20 }}
               className="w-full space-y-12"
             >
-              {/* Name Input Section */}
-              <div className="bg-brand-maroon/60 border-[4px] border-brand-gold/10 p-10 rounded-[50px] shadow-[0_40px_80px_rgba(0,0,0,0.8)] relative overflow-hidden max-w-[340px] mx-auto w-full mb-10">
-                 <div className="flex items-center gap-3 mb-6 ml-4">
-                    <User style={pureGoldIconStyle} className="w-4 h-4" />
-                    <span className="text-brand-gold text-[12px] font-black uppercase tracking-[0.5em] opacity-80">NAME</span>
+               {/* Name Input Section */}
+              <div className="premium-card p-6 rounded-[40px] shadow-[0_40px_80px_rgba(0,0,0,0.8)] relative overflow-hidden max-w-[300px] mx-auto w-full mb-8">
+                 <div className="flex items-center gap-2 mb-4 ml-4">
+                    <User className="w-3 h-3 text-gold embossed" />
+                    <span className="text-brand-gold text-[10px] font-black uppercase tracking-[0.5em] opacity-80 embossed">NAME</span>
                  </div>
-                 <div className="relative text-center py-8 rounded-[32px] border-2 border-brand-gold/10 bg-black/40 shadow-[inset_0_4px_20px_rgba(0,0,0,1)]">
+                  <div className="relative text-center py-4 rounded-[24px] premium-border bg-black/40 shadow-[inset_0_4px_20px_rgba(0,0,0,1)] embossed">
                     <input 
-                      type="text" 
                       value={name}
                       onChange={(e) => setName(e.target.value.toUpperCase())}
-                      className="bg-transparent text-center w-full focus:outline-none text-[32px] sm:text-[40px] font-display font-black tracking-[-0.05em] uppercase text-brand-gold placeholder:text-brand-gold/10"
+                      className="bg-transparent text-center w-full focus:outline-none text-[20px] sm:text-[24px] font-display font-black tracking-[-0.05em] uppercase text-brand-gold placeholder:text-brand-gold/10 px-4 min-h-[48px] py-2 flex items-center justify-center leading-tight whitespace-normal break-words embossed"
                       placeholder="PLAYER_89"
                     />
-                 </div>
+                  </div>
               </div>
 
                {/* Mode Selectors */}
               <div className="flex justify-center gap-6 px-4">
                  {[
                    { id: 'single', label: 'SINGLE PLAYER', icon: <User className="w-12 h-12" />, action: () => setShowSetup(true), locked: !isTutorialComplete },
-                   { id: 'multi', label: 'MULTIPLAYER', icon: <Users className="w-12 h-12" />, action: onStartMultiplayer, locked: !isTutorialComplete },
+                   { id: 'multi', label: 'MULTIPLAYER', icon: <Users className="w-12 h-12" />, action: () => onStartMultiplayer(name), locked: !isTutorialComplete },
                    { id: 'tutorial', label: 'TUTORIAL', icon: <Info className="w-12 h-12" />, action: onShowTutorial, locked: false }
                  ].map((mode) => (
                    <button
@@ -129,14 +144,14 @@ const Home: React.FC<HomeProps> = ({
                      )}
                    >
                      <div className={cn(
-                       "w-24 h-40 sm:w-28 sm:h-44 bg-brand-maroon/80 border-[4px] rounded-[54px] flex items-center justify-center shadow-[0_30px_60px_rgba(0,0,0,0.8)] transition-all group-active:scale-95",
-                       mode.id === 'tutorial' ? "border-brand-gold shadow-[0_0_30px_rgba(255,215,0,0.3)]" : "border-brand-gold/10 hover:border-brand-gold/30"
+                       "w-24 h-40 sm:w-28 sm:h-44 bg-brand-maroon/80 premium-border rounded-[54px] flex items-center justify-center shadow-[0_30px_60px_rgba(0,0,0,0.8)] transition-all group-active:scale-95 no-theme",
+                       mode.id === 'tutorial' ? "border-brand-gold/80 shadow-[0_0_30px_rgba(255,215,0,0.3)]" : "border-brand-gold/10 hover:border-brand-gold/30"
                      )}>
                         <div className={cn("transition-transform group-hover:scale-110", mode.id === 'tutorial' ? "text-brand-gold" : "text-brand-gold/60")}>
                            {mode.locked ? <Lock className="w-10 h-10 opacity-30" /> : mode.icon}
                         </div>
                      </div>
-                     <span className="text-[10px] font-black tracking-tight leading-tight w-full text-center uppercase transition-colors italic whitespace-pre-wrap text-brand-gold/60 group-hover:text-brand-gold">
+                     <span className="text-[10px] font-black tracking-tight leading-tight w-full text-center uppercase transition-colors italic whitespace-pre-wrap text-brand-gold/60 group-hover:text-brand-gold embossed">
                         {mode.label.split(' ').join('\n')}
                      </span>
                      {mode.locked && (
@@ -157,7 +172,7 @@ const Home: React.FC<HomeProps> = ({
                        initial={{ scale: 0.5, opacity: 0, y: 20 }}
                        animate={{ scale: 1, opacity: 1, y: 0 }}
                        exit={{ scale: 1.2, opacity: 0 }}
-                       className="bg-brand-gold text-brand-red px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl"
+                       className="bg-brand-gold text-brand-red px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl embossed"
                      >
                        {eff.text}
                      </motion.div>
@@ -171,15 +186,14 @@ const Home: React.FC<HomeProps> = ({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.9 }}
                   transition={{ delay: 0.5 }}
-                  style={pureGoldStyle}
-                  className="font-display font-black text-xl italic tracking-[0.15em] uppercase leading-tight whitespace-normal break-words"
+                  className="font-display font-black text-xl italic tracking-[0.15em] uppercase leading-tight whitespace-normal break-words embossed animate-wave"
                 >
-                  LOWEST SCORE <br/> <span className="text-white/40">WINS THE MATCH</span>
+                  <WaveText text="LOWEST SCORE" /> <br/> <span className="text-white/40 embossed"><WaveText text="WINS THE MATCH" /></span>
                 </motion.p>
                 
                 {/* Copyright */}
                 <div className="pt-4 text-center opacity-100">
-                   <p style={pureGoldStyle} className="text-[8px] font-black uppercase tracking-[0.2em] font-sans break-words px-2">
+                   <p className="text-[8px] font-black uppercase tracking-[0.2em] font-sans break-words px-2 embossed opacity-40">
                      © 2026 SURVIVAL - ALL RIGHTS RESERVED
                    </p>
                 </div>
@@ -191,28 +205,28 @@ const Home: React.FC<HomeProps> = ({
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="w-full bg-brand-maroon/60 backdrop-blur-xl border-4 border-brand-gold/10 p-10 rounded-[50px] shadow-2xl relative overflow-hidden"
+              className="w-full premium-card p-10 rounded-[50px] shadow-2xl relative overflow-hidden"
             >
               <div className="flex items-center justify-between mb-8">
                  <Button 
                    variant="ghost" 
                    onClick={() => handleModeClick(() => setShowSetup(false))} 
-                   className="text-brand-gold/40 hover:text-brand-gold flex items-center gap-2 p-0"
+                   className="text-brand-gold/40 hover:text-brand-gold flex items-center gap-2 p-0 no-theme"
                  >
-                    <ArrowLeft size={16} /> <span className="text-[10px] font-black tracking-widest">BACK</span>
+                    <ArrowLeft size={16} /> <span className="text-[10px] font-black tracking-widest embossed">BACK</span>
                  </Button>
                  <div className="flex flex-col items-end">
-                    <span style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest opacity-60">Configure</span>
-                    <span style={pureGoldStyle} className="text-xl font-display font-bold italic">SOLO MODE</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60 embossed">MODE</span>
+                    <span className="text-xl font-display font-bold italic embossed">SINGLE PLAYER MODE</span>
                  </div>
               </div>
               
               <div className="space-y-12">
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 ml-2">
-                    <Users style={pureGoldIconStyle} size={14} />
-                    <label style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Players</label>
-                    <span style={pureGoldStyle} className="ml-auto text-xl font-display font-bold">{playerCount}</span>
+                    <Users size={14} className="text-gold embossed" />
+                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60 embossed">Total Players</label>
+                    <span className="ml-auto text-xl font-display font-bold embossed">{playerCount}</span>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
@@ -220,14 +234,14 @@ const Home: React.FC<HomeProps> = ({
                         key={n}
                         variant="outline"
                         className={cn(
-                          "h-12 rounded-xl transition-all font-black text-lg p-0",
+                          "h-12 rounded-xl transition-all font-black text-lg p-0 no-theme",
                           playerCount === n 
                             ? "bg-brand-gold text-brand-red border-brand-gold shadow-lg shadow-brand-gold/20" 
                             : "bg-transparent text-brand-gold border-brand-gold/20 hover:bg-brand-gold/10"
                         )}
                         onClick={() => handleModeClick(() => setPlayerCount(n))}
                       >
-                        {n}
+                        <span className="embossed">{n}</span>
                       </Button>
                     ))}
                   </div>
@@ -235,24 +249,24 @@ const Home: React.FC<HomeProps> = ({
 
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 ml-2">
-                    <PlayCircle style={pureGoldIconStyle} size={14} />
-                    <label style={pureGoldStyle} className="text-[10px] font-black uppercase tracking-widest opacity-60">Match Rounds</label>
-                    <span style={pureGoldStyle} className="ml-auto text-xl font-display font-bold">{roundCount}</span>
+                    <PlayCircle size={14} className="text-gold embossed" />
+                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60 embossed">Match Rounds</label>
+                    <span className="ml-auto text-xl font-display font-bold embossed">{roundCount}</span>
                   </div>
-                  <div className="flex gap-2">
-                    {[3, 5, 10, 15].map(r => (
+                  <div className="grid grid-cols-5 gap-1.5 h-32 overflow-y-auto pr-2 custom-scrollbar no-scrollbar">
+                    {Array.from({ length: 15 }, (_, i) => i + 1).map(r => (
                       <Button
                         key={r}
                         variant="outline"
                         className={cn(
-                          "flex-1 h-14 rounded-2xl transition-all font-black text-lg",
+                          "h-10 rounded-xl transition-all font-black text-sm p-0 no-theme",
                           roundCount === r 
                             ? "bg-brand-gold text-brand-red border-brand-gold shadow-lg shadow-brand-gold/20" 
                             : "bg-transparent text-brand-gold border-brand-gold/20 hover:bg-brand-gold/10"
                         )}
                         onClick={() => handleModeClick(() => setRoundCount(r))}
                       >
-                        {r}
+                        <span className="embossed">{r}</span>
                       </Button>
                     ))}
                   </div>
@@ -261,16 +275,16 @@ const Home: React.FC<HomeProps> = ({
                 <div className="pt-4 space-y-4">
                   <Button 
                     onClick={() => handleModeClick(() => onStartSinglePlayer(playerCount, roundCount, name))} 
-                    className="w-full h-16 sm:h-20 rounded-[32px] bg-brand-gold text-brand-red font-black text-xl sm:text-2xl shadow-2xl shadow-brand-gold/10 hover:scale-[1.02] active:scale-95 transition-all break-words"
+                    className="w-full h-16 sm:h-20 rounded-[32px] bg-brand-gold text-brand-red font-black text-xl sm:text-2xl shadow-2xl shadow-brand-gold/10 hover:scale-[1.02] active:scale-95 transition-all break-words no-theme"
                   >
-                    START GAME
+                    <span className="embossed text-brand-red">START GAME</span>
                   </Button>
                   <Button 
                     variant="ghost" 
                     onClick={() => handleModeClick(() => setShowSetup(false))} 
-                    className="w-full text-brand-gold/20 font-black tracking-widest text-[10px] break-words px-4"
+                    className="w-full text-brand-gold/20 font-black tracking-widest text-[10px] break-words px-4 no-theme"
                   >
-                    BACK TO MENU
+                    <span className="embossed">BACK TO MENU</span>
                   </Button>
                 </div>
               </div>

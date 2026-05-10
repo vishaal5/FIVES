@@ -74,7 +74,7 @@ const Tutorial: React.FC<TutorialProps> = ({ onClose, onStartInteractive }) => {
     >
       <div className="flex justify-between items-center mb-8 px-4">
         <div className="text-left">
-           <h2 className="text-4xl font-black italic text-brand-gold uppercase tracking-tighter leading-none embossed">LEARN TO SURVIVE</h2>
+           <h2 className="text-4xl font-black italic text-brand-gold uppercase tracking-tighter leading-none embossed">LEARNFIVES</h2>
            <p className="text-brand-gold/40 text-[10px] font-black uppercase tracking-[0.4em] mt-2 italic">WINNER SCORES THE LEAST</p>
         </div>
         <button 

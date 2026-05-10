@@ -1,45 +1,66 @@
 {
   "entities": {
-    "Game": {
-      "title": "Fives Game Session",
-      "description": "Represents an active or pending FIVES game session",
+    "Room": {
+      "title": "Room",
+      "description": "A game room lobby",
       "type": "object",
       "properties": {
+        "roomName": { "type": "string" },
         "hostId": { "type": "string" },
-        "status": { "type": "string", "enum": ["waiting", "playing", "round_over", "game_over"] },
-        "round": { "type": "number" },
-        "maxRounds": { "type": "number" },
-        "turn": { "type": "number" },
-        "pretendJokerRank": { "type": "string" },
-        "openPile": { "type": "array" },
-        "deckCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["lobby", "playing", "round_over", "game_over"] },
+        "numPlayers": { "type": "number" },
+        "maxGames": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["hostId", "status", "createdAt"]
+      "required": ["roomName", "hostId", "status", "numPlayers", "maxGames"]
     },
     "Player": {
-      "title": "Player in Session",
-      "description": "Represents a player's private and public state in a game",
+      "title": "Player",
+      "description": "A player in a room",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "hand": { "type": "array" },
         "score": { "type": "number" },
-        "isReady": { "type": "boolean" },
-        "hasCalled": { "type": "boolean" }
+        "isConfirmed": { "type": "boolean" },
+        "isHost": { "type": "boolean" },
+        "hand": { "type": "array", "items": { "type": "object" } },
+        "lastSeen": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "score"]
+      "required": ["name", "score", "isConfirmed", "isHost"]
+    },
+    "GameState": {
+      "title": "GameState",
+      "description": "The current state of the game",
+      "type": "object",
+      "properties": {
+        "deck": { "type": "array" },
+        "discardPile": { "type": "array" },
+        "openCard": { "type": "object" },
+        "jokerCard": { "type": "object" },
+        "jokerRank": { "type": "string" },
+        "currentPlayerIndex": { "type": "number" },
+        "startingPlayerIndex": { "type": "number" },
+        "status": { "type": "string" },
+        "roundCount": { "type": "number" },
+        "gameCount": { "type": "number" },
+        "message": { "type": "string" },
+        "availableCardAtTurnStart": { "type": "object" }
+      }
     }
   },
   "firestore": {
-    "/games/{gameId}": {
-      "schema": "Game",
-      "description": "Core game session data"
+    "rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Main room document"
     },
-    "/games/{gameId}/players/{playerId}": {
+    "rooms/{roomId}/players/{playerId}": {
       "schema": "Player",
-      "description": "Player state within a specific game"
+      "description": "Individual player data"
+    },
+    "rooms/{roomId}/state/current": {
+      "schema": "GameState",
+      "description": "Real-time game state"
     }
   }
 }

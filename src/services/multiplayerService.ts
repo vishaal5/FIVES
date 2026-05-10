@@ -58,100 +58,98 @@ export const ensureAuth = async () => {
   return auth.currentUser!;
 };
 
-export const createRoom = async (rounds: number) => {
+export const createRoom = async (roomName: string, maxRounds: number, maxPlayers: number, playerName?: string) => {
   const user = await ensureAuth();
-  const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const gamePath = `games/${roomId}`;
+  const roomId = Math.floor(1000 + Math.random() * 8999).toString();
+  const roomPath = `rooms/${roomId}`;
 
   try {
-    const gameData = {
+    const roomData = {
+      roomName: roomName || 'GAME ROOM',
       hostId: user.uid,
-      status: 'waiting',
+      status: 'lobby',
       round: 1,
-      maxRounds: rounds,
-      turn: 0,
-      pretendJokerRank: null,
-      openPile: [],
-      deckCount: 0,
+      maxGames: maxRounds,
+      numPlayers: maxPlayers,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
-    await setDoc(doc(db, gamePath), gameData);
+    await setDoc(doc(db, roomPath), roomData);
     
     // Add host as player
-    await setDoc(doc(db, `${gamePath}/players/${user.uid}`), {
-      name: `Player ${user.uid.substring(0, 4)}`,
+    await setDoc(doc(db, `${roomPath}/players/${user.uid}`), {
+      name: playerName || `Player ${user.uid.substring(0, 4)}`,
       score: 0,
-      isReady: true,
-      hasCalled: false,
-      hand: []
+      isConfirmed: true,
+      isHost: true,
+      lastSeen: serverTimestamp()
     });
 
     return roomId;
   } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, gamePath);
+    handleFirestoreError(error, OperationType.CREATE, roomPath);
   }
 };
 
-export const joinRoom = async (roomId: string) => {
+export const joinRoom = async (roomId: string, playerName?: string) => {
   const user = await ensureAuth();
-  const gamePath = `games/${roomId}`;
+  const roomPath = `rooms/${roomId}`;
 
   try {
-    const gameSnap = await getDoc(doc(db, gamePath));
-    if (!gameSnap.exists()) {
+    const roomSnap = await getDoc(doc(db, roomPath));
+    if (!roomSnap.exists()) {
       throw new Error('Room not found');
     }
 
     // Add player
-    await setDoc(doc(db, `${gamePath}/players/${user.uid}`), {
-      name: `Player ${user.uid.substring(0, 4)}`,
+    await setDoc(doc(db, `${roomPath}/players/${user.uid}`), {
+      name: playerName || `Player ${user.uid.substring(0, 4)}`,
       score: 0,
-      isReady: true,
-      hasCalled: false,
-      hand: []
+      isConfirmed: true,
+      isHost: false,
+      lastSeen: serverTimestamp()
     });
 
     return roomId;
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `${gamePath}/players/${user.uid}`);
+    handleFirestoreError(error, OperationType.WRITE, `${roomPath}/players/${user.uid}`);
   }
 };
 
 export const subscribeToGame = (roomId: string, callback: (data: any) => void) => {
-  return onSnapshot(doc(db, `games/${roomId}`), (snapshot) => {
+  return onSnapshot(doc(db, `rooms/${roomId}`), (snapshot) => {
     if (snapshot.exists()) {
       callback(snapshot.data());
     }
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `games/${roomId}`);
+    handleFirestoreError(error, OperationType.GET, `rooms/${roomId}`);
   });
 };
 
 export const subscribeToPlayers = (roomId: string, callback: (players: any[]) => void) => {
-  return onSnapshot(collection(db, `games/${roomId}/players`), (snapshot) => {
+  return onSnapshot(collection(db, `rooms/${roomId}/players`), (snapshot) => {
     const players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(players);
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `games/${roomId}/players`);
+    handleFirestoreError(error, OperationType.GET, `rooms/${roomId}/players`);
   });
 };
 
 export const updateGameState = async (roomId: string, data: any) => {
-  const gamePath = `games/${roomId}`;
+  const roomPath = `rooms/${roomId}`;
   try {
-    await updateDoc(doc(db, gamePath), {
+    await updateDoc(doc(db, roomPath), {
       ...data,
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, gamePath);
+    handleFirestoreError(error, OperationType.UPDATE, roomPath);
   }
 };
 
 export const updatePlayerState = async (roomId: string, playerId: string, data: any) => {
-  const playerPath = `games/${roomId}/players/${playerId}`;
+  const playerPath = `rooms/${roomId}/players/${playerId}`;
   try {
     await updateDoc(doc(db, playerPath), data);
   } catch (error) {
