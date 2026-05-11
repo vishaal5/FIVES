@@ -75,7 +75,8 @@ const ASSETS = {
     DRAW: 'https://cdn.pixabay.com/audio/2022/03/10/audio_c352787fc3.mp3',
     WIN: 'https://cdn.pixabay.com/audio/2021/08/04/audio_12e9b0b468.mp3',
     PENALTY: 'https://cdn.pixabay.com/audio/2021/08/04/audio_3d3077732a.mp3',
-    DISCARD: 'https://cdn.pixabay.com/audio/2022/01/21/audio_24e9309f98.mp3'
+    DISCARD: 'https://cdn.pixabay.com/audio/2022/01/21/audio_24e9309f98.mp3',
+    POWERUP: 'https://cdn.pixabay.com/audio/2021/08/09/audio_1e00e47017.mp3'
   }
 };
 
@@ -190,7 +191,8 @@ const useSoundEngine = (isMuted: boolean) => {
     playPenalty: () => play('PENALTY', 0.6),
     playDiscard: () => play('DISCARD', 0.5, 500),
     playStart: () => play('SWEEP', 0.4),
-    playTurnAlert: () => play('DRAW', 0.3), 
+    playTurnAlert: () => play('DRAW', 0.3),
+    playPowerUp: () => play('POWERUP', 0.7),
   };
 };
 
@@ -343,20 +345,16 @@ export const GameBoard: React.FC<{
 
   const PRO_TIPS = [
     {
-      title: "The Matching Strategy",
-      text: "Pick from the open card pile if it matches any card that you already have, this allowes you to discard them as a pair / triplet / set in the next round. Drastically reducing the POINTS in hand."
+      title: "THE MATCHING STRATEGY",
+      text: "Pick from the open card pile if it matches any card that you already have, this allows you to discard them as a pair / triplet / set in the next round."
     },
     {
-      title: "The Fifth Round Rule",
-      text: "Keep your hand value as low as possible after the fifth round. Any player can call 'DECK' at this point, and you don't want to be caught with high numbers!"
+      title: "THE FIFTH ROUND RULE",
+      text: "Keep your hand value as low as possible after the fifth round. Any player can call 'DECK' at this point!"
     },
     {
-      title: "Long Game Mindset",
-      text: "In a long series, it's better to play safe with low numbers than to risk a 'Wrong Deck' penalty. Cumulative scores win the game, so consistency is your best friend."
-    },
-    {
-      title: "Wild Card Caution",
-      text: "Beware, you might drop a wild card by mistake as it is valued at 0 POINTS. Always verify your selection before discarding!"
+      title: "LONG SERIES SAFETY",
+      text: "In a long series, its better to play safe with lower number than to risk a 'wrong deck' penalty. Cumulative low scores wins, consistency is your friend."
     }
   ];
   // Monitoring browser online status
@@ -463,8 +461,9 @@ export const GameBoard: React.FC<{
     jokerRank: null,
     roundCount: 1,
     gameCount: 1,
-    maxGames: maxRounds,
-    numPlayers: playerCount,
+    maxRounds: 5,
+    maxGames: 1,
+    numPlayers: 2,
     status: isMultiplayer ? 'lobby' : 'playing',
     winner: null,
     deckingPlayerId: null,
@@ -486,6 +485,7 @@ export const GameBoard: React.FC<{
 
   const [hasDiscardedThisTurn, setHasDiscardedThisTurn] = useState(false);
   const [justDiscardedCard, setJustDiscardedCard] = useState<CardType | null>(null);
+  const [showComboEffect, setShowComboEffect] = useState<{type: string, count: number} | null>(null);
 
   const sounds = useSoundEngine(isMuted);
 
@@ -1109,8 +1109,6 @@ export const GameBoard: React.FC<{
         return;
     }
 
-    sounds.playClick();
-    
     let picked = gameState.openCard;
     let newDiscard = gameState.discardPile.slice(0, -1);
 
@@ -1126,6 +1124,8 @@ export const GameBoard: React.FC<{
     }
 
     if (!picked) return;
+    
+    sounds.playDraw();
 
     const newPlayers = [...gameState.players];
     const personDrawn = newPlayers[gameState.currentPlayerIndex].name;
@@ -1208,6 +1208,14 @@ export const GameBoard: React.FC<{
     else if (cardsToDiscard.length === 3) addEffect('triplet', 'TRIPLETS');
     else if (cardsToDiscard.length >= 4) addEffect('set', 'SET');
 
+    // Trigger dramatic effect for sets
+    if (cardsToDiscard.length > 1) {
+      const comboType = cardsToDiscard.length === 2 ? 'PAIR' : cardsToDiscard.length === 3 ? 'TRIPLET' : 'SET';
+      setShowComboEffect({ type: comboType, count: cardsToDiscard.length });
+      sounds.playPowerUp();
+      setTimeout(() => setShowComboEffect(null), 1500);
+    }
+
     // Each turn: 1. Discard 1+ cards same rank. 2. Draw 1 card (Ends turn).
     const nextIdx = (gameState.currentPlayerIndex + 1) % gameState.numPlayers;
     const isRoundDone = nextIdx === gameState.startingPlayerIndex;
@@ -1236,21 +1244,37 @@ export const GameBoard: React.FC<{
   };
 
   const calculateRoundOverState = (state: GameState, winnerId: string | null, isWrongDeck = false): GameState => {
-    // Determine the round winner's ID
-    // If it's a wrong deck, the winner is the one who called "Wrong Deck"
-    // If it's a regular round over, the winner is the one who called "Deck"
-    const roundWinnerId = isWrongDeck ? winnerId : state.deckingPlayerId;
+    // Correct deck logic: Decker gets 0 only if strictly lower than EVERYONE ELSE.
+    // If ANYONE has equal or lower points, it's a Wrong Deck.
     
-    const newPlayers = state.players.map((p) => {
-      const handPoints = calculateHandValue(p.hand, state.jokerRank);
+    const values = state.players.map(p => calculateHandValue(p.hand, state.jokerRank));
+    const deckerIdx = state.players.findIndex(p => p.id === state.deckingPlayerId);
+    const deckerVal = deckerIdx !== -1 ? values[deckerIdx] : 999;
+    
+    // Check if anyone else has equal or lower points
+    const othersWithEqualOrLower = values.filter((v, i) => i !== deckerIdx && v <= deckerVal);
+    const effectivelyWrong = isWrongDeck || othersWithEqualOrLower.length > 0;
+    
+    let roundWinnerId = state.deckingPlayerId;
+    if (effectivelyWrong) {
+      if (winnerId) {
+        roundWinnerId = winnerId;
+      } else {
+        // Find who had the absolute lowest score (excluding decker)
+        const minVal = Math.min(...values);
+        const winners = state.players.filter((p, i) => values[i] === minVal && p.id !== state.deckingPlayerId);
+        roundWinnerId = winners.length > 0 ? winners[0].id : state.players[0].id;
+      }
+    }
+
+    const newPlayers = state.players.map((p, i) => {
+      const handPoints = values[i];
       let gainedPoints = handPoints; 
 
-      if (p.id && p.id === roundWinnerId) {
-        // Successful challenger (Wrong Deck) or successful decker (Regular) gets 0
+      if (p.id === roundWinnerId) {
         gainedPoints = 0;
-      } else if (isWrongDeck && p.id === state.deckingPlayerId) {
-        // If a person called "Deck" and was challenged successfully, they get 50 POINTS penalty
-        gainedPoints = 50;
+      } else if (effectivelyWrong && p.id === state.deckingPlayerId) {
+        gainedPoints = 50; // Penalty for wrong deck
       }
 
       return {
@@ -1265,7 +1289,7 @@ export const GameBoard: React.FC<{
     const nextStartingIndex = (state.startingPlayerIndex! + 1) % state.numPlayers;
     
     // Explicitly set the round winner ID for the result screen
-    const finalRoundWinnerId = isWrongDeck ? winnerId : state.deckingPlayerId;
+    const finalRoundWinnerId = effectivelyWrong ? roundWinnerId : state.deckingPlayerId;
     
     return {
       ...state, 
@@ -1273,7 +1297,7 @@ export const GameBoard: React.FC<{
       status: isGameOver ? 'final_results' : 'round_over',
       gameCount: state.gameCount + 1, 
       startingPlayerIndex: nextStartingIndex,
-      message: isWrongDeck ? 'WRONG DECK!' : 'DECK SUCCESS!',
+      message: effectivelyWrong ? 'WRONG DECK!' : 'DECK SUCCESS!',
       winner: isGameOver ? sortedPlayersForWin[0].id : null,
       roundWinnerId: finalRoundWinnerId,
       deckingPlayerId: null,
@@ -1297,26 +1321,25 @@ export const GameBoard: React.FC<{
     if (!me) return;
     
     const myVal = calculateHandValue(me.hand, gameState.jokerRank);
-    if (myVal < (gameState.deckingValue || 0)) {
+    if (myVal <= (gameState.deckingValue || 0)) {
       addEffect('wrong', 'WRONG DECK!');
       finishRound(me.id, true);
     }
   };
 
   const handleDeckIt = () => {
-    console.log('[DEBUG] handleDeckIt attempt');
     const values = gameState.players.map(p => calculateHandValue(p.hand, gameState.jokerRank));
     const deckerVal = values[gameState.currentPlayerIndex];
-    
-    const isZeroPoints = deckerVal === 0;
-    const canDeckStatus = Math.floor(gameState.roundCount) >= 5 || isZeroPoints;
-    if (gameState.status !== 'playing' || hasDiscardedThisTurn || (!canDeckStatus && !isZeroPoints)) return;
+    if (gameState.status !== 'playing' || hasDiscardedThisTurn) return;
     
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     if (isMultiplayer && currentPlayer.id !== playerId) return;
 
+    // Logic: Always allow attempt, but it's risky if round < 5 or points > 0
+    // Actually the user wants it UNLOCKED, implying they can try anytime.
+
     // Start challenge phase
-    const challengeEndTime = Date.now() + 5000; // 5 seconds to challenge
+    const challengeEndTime = Date.now() + 5000; 
     const newState: GameState = {
       ...gameState,
       status: 'deck_challenge',
@@ -1330,16 +1353,13 @@ export const GameBoard: React.FC<{
     setGameState(newState);
     syncState(newState);
 
-    // For single player, move to end if no one can challenge
     if (!isMultiplayer) {
       setTimeout(() => {
         setGameState(current => {
           if (current.status === 'deck_challenge') {
-             // Check if any CPU has lower points
              const cpuValues = current.players.slice(1).map(p => calculateHandValue(p.hand, current.jokerRank));
              const minCpuVal = Math.min(...cpuValues);
-             if (minCpuVal < deckerVal) {
-                // CPU calls WRONG DECK
+             if (minCpuVal <= deckerVal) {
                 const cpuIdx = 1 + cpuValues.indexOf(minCpuVal);
                 const newState = calculateRoundOverState(current, current.players[cpuIdx].id, true);
                 sounds.playPenalty();
@@ -1485,22 +1505,18 @@ export const GameBoard: React.FC<{
       {
         step: 1,
         text: "FIRST, DISCARD ONE OR MORE CARDS OF THE SAME RANK AND PRESS 'DISCARD'.",
-        position: 'bottom'
       },
       {
         step: 2,
         text: "PERFECT! NOW YOU MUST PICK ONE CARD FROM EITHER THE OPEN PILE OR DECK TO END YOUR TURN.",
-        position: 'middle'
       },
       {
         step: 3,
         text: "ACE IS 1 POINT. NUMBERS ARE FACE VALUE. J, Q, K ARE 10. JOKERS & WILD CARDS ARE 0!",
-        position: 'middle'
       },
       {
         step: 4,
-        text: "GOAL: HAVE THE LEAST POINTS. 'DECK IT' UNLOCKS AFTER 5 ROUNDS!",
-        position: 'middle'
+        text: "GOAL: HAVE THE LEAST POINTS. 'DECK IT' UNLOCKS WHENEVER YOU ARE READY!",
       }
     ];
 
@@ -1508,47 +1524,55 @@ export const GameBoard: React.FC<{
     const data = TUTORIAL_DATA[tutorialStep - 1];
 
     return (
-      <div className="fixed top-6 left-0 right-0 z-[1000] flex justify-center pointer-events-none px-4">
+      <div className="fixed bottom-32 left-6 z-[1000] flex flex-col items-start pointer-events-none max-w-[300px]">
         <motion.div 
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="bg-black/90 backdrop-blur-3xl text-gold p-6 rounded-[32px] shadow-[0_20px_80px_black] max-w-lg w-full relative pointer-events-auto border-4 border-gold/20"
+          initial={{ x: -100, opacity: 0, scale: 0.8 }}
+          animate={{ x: 0, opacity: 1, scale: 1 }}
+          className="relative pointer-events-auto"
         >
-          <div className="flex items-center gap-6">
-            <div className="w-14 h-14 bg-gold/10 rounded-2xl flex items-center justify-center shrink-0 border border-gold/20">
-               <GraduationCap className="text-gold w-8 h-8" />
+          {/* Snowy Owl Mascot */}
+          <div className="relative mb-2 ml-4">
+            <div className="w-24 h-24 flex items-center justify-center relative z-10">
+              <img 
+                src="https://pngimg.com/uploads/owl/owl_PNG43.png" 
+                alt="Snowy Owl Mascot" 
+                className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+                referrerPolicy="no-referrer"
+              />
             </div>
-            <div className="flex-1">
-              <p className="font-black text-xl leading-tight uppercase tracking-widest text-left">
+            {/* Owl Eyes Glow */}
+            <div className="absolute top-8 left-8 w-1 h-1 bg-gold/60 blur-[1px] rounded-full z-20 animate-pulse" />
+            <div className="absolute top-8 right-8 w-1 h-1 bg-gold/60 blur-[1px] rounded-full z-20 animate-pulse" />
+          </div>
+
+          {/* Speech Bubble */}
+          <div className="bg-white text-brand-maroon p-5 rounded-[30px] rounded-bl-sm shadow-[0_30px_90px_rgba(0,0,0,0.8)] border-4 border-gold/40 relative">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-gold rounded-full animate-ping" />
+                <h4 className="font-black text-[10px] italic text-gold uppercase tracking-widest bg-brand-maroon/10 px-2 py-0.5 rounded-full w-fit">COACH TIP</h4>
+              </div>
+              <p className="font-bold text-sm leading-tight uppercase tracking-tight text-left text-brand-maroon">
                 {data.text}
               </p>
+              <button 
+                onClick={() => {
+                  sounds.playClick();
+                  if (tutorialStep >= TUTORIAL_DATA.length) {
+                    setIsTutorial(false);
+                    setTutorialStep(0);
+                  } else {
+                     setTutorialStep(prev => prev + 1);
+                  }
+                }}
+                className="w-full mt-1 bg-gold text-brand-maroon py-3 rounded-xl font-black text-[10px] uppercase tracking-widest border-2 border-black active:scale-95 transition-all shadow-lg hover:bg-gold-light"
+              >
+                {tutorialStep >= TUTORIAL_DATA.length ? "GOT IT!" : "NEXT STEP"}
+              </button>
             </div>
-            <button 
-              onClick={() => {
-                sounds.playClick();
-                if (tutorialStep >= TUTORIAL_DATA.length) {
-                  setIsTutorial(false);
-                  setTutorialStep(0);
-                } else {
-                   setTutorialStep(prev => prev + 1);
-                }
-              }}
-              className="bg-gold text-berry-dark px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 border-black active:scale-95 transition-transform shadow-lg"
-            >
-              {tutorialStep >= TUTORIAL_DATA.length ? "FINISH" : "NEXT"}
-            </button>
+            {/* Bubble Tail */}
+            <div className="absolute -bottom-3 left-4 w-6 h-6 bg-white rotate-45 border-r-4 border-b-4 border-gold/40 -z-10" />
           </div>
-          
-          {data.step === 2 && (
-             <div className="fixed inset-0 pointer-events-none">
-                <motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="absolute top-[45%] left-[30%] -translate-x-1/2">
-                   <ArrowDown className="w-16 h-16 text-gold drop-shadow-lg" />
-                </motion.div>
-                <motion.div animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="absolute top-[45%] left-[70%] -translate-x-1/2">
-                   <ArrowDown className="w-16 h-16 text-gold drop-shadow-lg" />
-                </motion.div>
-             </div>
-          )}
         </motion.div>
       </div>
     );
@@ -1595,11 +1619,38 @@ export const GameBoard: React.FC<{
              <ArrowLeft className="w-5 h-5" />
           </button>
           
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-gold via-berry-pink to-gold animate-gradient" />
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-gold via-brand-gold to-gold animate-gradient" />
           
           <div className="w-16 h-16 bg-gold/5 rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-inner border border-black group">
              <Gamepad2 className="w-8 h-8 text-gold group-hover:scale-110 transition-transform" />
           </div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 relative"
+          >
+            <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none opacity-20">
+              {[1, 2, 3].map((v) => (
+                <motion.div
+                  key={`wave-${v}`}
+                  animate={{
+                    y: [0, -10, 0],
+                    x: [-5, 5, -5],
+                  }}
+                  transition={{
+                    duration: 2 + v,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                  className="w-full h-4 absolute bg-gold/10"
+                  style={{ top: `${v * 25}%` }}
+                />
+              ))}
+            </div>
+            <h3 className="text-gold font-black text-xs tracking-[0.5em] mb-2 embossed">DON'T PLAY THE ODDS</h3>
+            <h3 className="text-white font-black text-xl tracking-[0.3em] embossed">PLAY THE MAN</h3>
+          </motion.div>
 
           <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter mb-4 italic text-brand-gold embossed">{roomName}</h2>
           
@@ -1639,7 +1690,7 @@ export const GameBoard: React.FC<{
           ) : playersInRoom.map((p, pIdx) => (
             <div key={`lobby-player-${p.id || pIdx}-${pIdx}`} className="flex justify-between items-center p-5 bg-gold/5 rounded-[28px] border border-black text-white/5 hover:bg-gold/10 transition-all group">
                   <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center font-black text-berry-dark text-lg shadow-xl group-hover:scale-105 transition-transform">{(p.name?.[0] || '?')}</div>
+                     <div className="w-12 h-12 rounded-2xl bg-gold flex items-center justify-center font-black text-brand-maroon text-lg shadow-xl group-hover:scale-105 transition-transform">{(p.name?.[0] || '?')}</div>
                      <div className="flex flex-col items-start px-2 text-left">
                         <div className="flex items-center gap-2">
                            <span className="font-black text-base text-cream leading-tight">{p.name}</span>
@@ -1665,7 +1716,7 @@ export const GameBoard: React.FC<{
                     {effectiveIsHost && p.id !== playerId && (
                       <div className="flex gap-2">
                          {!p.isConfirmed && (
-                           <button onClick={() => { sounds.playClick(); confirmPlayer(p.id); }} className="px-5 py-2 bg-gold text-berry-dark rounded-xl font-black text-[10px] tracking-widest hover:bg-gold-light active:scale-95 transition-all shadow-lg uppercase">CONFIRM</button>
+                           <button onClick={() => { sounds.playClick(); confirmPlayer(p.id); }} className="px-5 py-2 bg-gold text-brand-maroon rounded-xl font-black text-[10px] tracking-widest hover:bg-gold-light active:scale-95 transition-all shadow-lg uppercase">CONFIRM</button>
                          )}
                          <button onClick={() => { sounds.playClick(); kickPlayer(p.id); }} className="p-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all border border-black active:scale-95"><Trash2 className="w-4 h-4" /></button>
                       </div>
@@ -1685,7 +1736,7 @@ export const GameBoard: React.FC<{
                      </span>
                      <button 
                        onClick={() => { sounds.playClick(); startMultiplayer(); }} 
-                       className="w-full py-7 font-black uppercase text-xl rounded-[32px] transition-all relative overflow-hidden shadow-2xl bg-gold text-berry-dark hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] embossed"
+                       className="w-full py-7 font-black uppercase text-xl rounded-[32px] transition-all relative overflow-hidden shadow-2xl bg-gold text-brand-maroon hover:bg-gold-light hover:scale-[1.02] active:scale-[0.98] embossed"
                      >
                        Start Game
                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cream/20 to-transparent animate-shimmer" />
@@ -1793,7 +1844,7 @@ export const GameBoard: React.FC<{
                         sounds.playClick();
                         window.location.reload();
                       }} 
-                      className="w-full py-6 bg-gold text-berry-dark font-black uppercase rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:scale-[1.02] active:scale-95 transition-all text-xs tracking-widest"
+                      className="w-full py-6 bg-gold text-brand-maroon font-black uppercase rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:scale-[1.02] active:scale-95 transition-all text-xs tracking-widest"
                     >
                       {(!isOnline) ? "CHECK WIFI & RETRY" : "FORCE RECONNECT"}
                     </button>
@@ -1837,7 +1888,7 @@ export const GameBoard: React.FC<{
                       />
                       <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent pointer-events-none" />
                    </div>
-                   <div className="absolute -bottom-2 -right-2 w-8 h-8 sm:w-10 sm:h-10 bg-berry rounded-full border-2 border-black flex items-center justify-center font-black text-white text-sm sm:text-base shadow-xl">5</div>
+                   <div className="absolute -bottom-2 -right-2 w-8 h-8 sm:w-10 sm:h-10 bg-brand-red rounded-full border-2 border-black flex items-center justify-center font-black text-white text-sm sm:text-base shadow-xl">5</div>
                    <div className="absolute inset-0 bg-gold/30 blur-2xl rounded-full -z-10 group-hover:bg-gold/50 transition-colors" />
                 </div>
               </div>
@@ -1930,6 +1981,27 @@ export const GameBoard: React.FC<{
                     <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
                   </button>
 
+                  <div className="p-10 bg-black/30 rounded-[48px] border-black border-2 focus-within:border-gold/50 transition-all shadow-3xl mb-8 group ring-1 ring-white/5">
+                      <div className="flex items-center gap-4 text-gold/30 mb-5 group-focus-within:text-gold transition-colors">
+                        <User className="w-5 h-5 text-gold" />
+                        <span className="text-[11px] font-black uppercase tracking-[0.5em] text-gold">PLAYER NAME</span>
+                      </div>
+                      <input 
+                        placeholder="ENTER NAME" 
+                        maxLength={12} 
+                        value={playerName} 
+                        onChange={e => {
+                          const val = e.target.value.toUpperCase();
+                          setPlayerName(val);
+                          setGameState(prev => ({
+                            ...prev,
+                            players: prev.players.map((p, i) => i === 0 ? { ...p, name: val } : p)
+                          }));
+                        }} 
+                        className="w-full bg-brand-maroon/20 border-black border rounded-3xl px-8 py-6 font-black uppercase text-center text-gold text-2xl tracking-[0.4em] outline-none focus:ring-4 focus:ring-gold/20 transition-all placeholder:text-white/5 shadow-inner" 
+                      />
+                  </div>
+
                   {setupMode === 'multiplayer_settings' && (
                     <div className="p-10 bg-black/30 rounded-[48px] border-black border-2 focus-within:border-gold/50 transition-all shadow-3xl group ring-1 ring-white/5">
                       <div className="flex items-center gap-4 text-gold/30 mb-5 group-focus-within:text-gold transition-colors">
@@ -1979,21 +2051,45 @@ export const GameBoard: React.FC<{
                           <Zap className="w-6 h-6 text-gold" />
                           <span className="text-[12px] font-black uppercase tracking-[0.5em] embossed">Number of Rounds</span>
                         </div>
-                        <span className="text-gold font-extrabold text-5xl tabular-nums shadow-[0_0_20px_var(--color-gold)] embossed">{gameState.maxGames}</span>
+                        <span className="text-gold font-extrabold text-5xl tabular-nums shadow-[0_0_20px_var(--color-gold)] embossed">{gameState.maxRounds}</span>
                      </div>
-                     <div className="grid grid-cols-4 gap-5">
+                     <div className="grid grid-cols-4 gap-4">
                         {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                               <button 
-                                key={`max-games-${n}`} 
+                                key={`max-rounds-${n}`} 
                                 onClick={() => { 
                                   sounds.playClick(); 
-                                  setGameState(p => ({ ...p, maxGames: n })); 
-                                  if (isMultiplayer && roomId) {
-                                    updateRoomSettings({ maxGames: n });
-                                  }
+                                  setGameState(p => ({ ...p, maxRounds: n })); 
                                 }} 
                                 className={cn(
                                   "py-4 rounded-xl font-black text-sm transition-all border-black border-2 shadow-lg uppercase", 
+                                  gameState.maxRounds === n ? "bg-gold text-brand-maroon border-gold-light" : "bg-white/5 text-gold/20 hover:bg-gold/10"
+                                )}
+                              >
+                                {n}
+                              </button>
+                        ))}
+                     </div>
+                  </div>
+
+                  <div className="p-10 bg-black/30 rounded-[48px] border-black border-2 hover:border-gold/20 transition-all shadow-3xl ring-1 ring-white/5">
+                     <div className="flex justify-between items-center mb-8 px-2">
+                        <div className="flex items-center gap-4 text-gold/40">
+                          <Gamepad2 className="w-6 h-6 text-gold" />
+                          <span className="text-[12px] font-black uppercase tracking-[0.5em] embossed">Number of Games</span>
+                        </div>
+                        <span className="text-gold font-extrabold text-5xl tabular-nums shadow-[0_0_20px_var(--color-gold)] embossed">{gameState.maxGames}</span>
+                     </div>
+                     <div className="grid grid-cols-5 gap-3">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                              <button 
+                                key={`num-games-${n}`} 
+                                onClick={() => { 
+                                  sounds.playClick(); 
+                                  setGameState(p => ({ ...p, maxGames: n }));
+                                }} 
+                                className={cn(
+                                  "py-3 rounded-xl font-black text-xs transition-all border-black border-2 shadow-md uppercase", 
                                   gameState.maxGames === n ? "bg-gold text-brand-maroon border-gold-light" : "bg-white/5 text-gold/20 hover:bg-gold/10"
                                 )}
                               >
@@ -2005,19 +2101,41 @@ export const GameBoard: React.FC<{
 
                   {setupMode === 'solo' && (
                     <button 
-                      onClick={() => initGame(gameState.numPlayers, gameState.maxGames)} 
-                      className="w-full py-12 bg-gold text-berry-dark font-black uppercase text-2xl rounded-[48px] shadow-[0_35px_80px_black] hover:bg-gold-light hover:-translate-y-1 active:translate-y-0.5 active:scale-[0.98] transition-all mt-10 border-t-2 border-gold-light/40 embossed"
+                      onClick={() => { sounds.playClick(); initGame(gameState.numPlayers, gameState.maxGames); }} 
+                      className="w-full py-12 bg-gold text-brand-maroon font-black uppercase text-2xl rounded-[48px] shadow-[0_35px_80px_black] hover:bg-gold-light hover:-translate-y-1 active:translate-y-0.5 active:scale-[0.98] transition-all mt-10 border-t-2 border-gold-light/40 embossed"
                     >
                       START GAME
                     </button>
                   )}
                 </div>
               ) : (
-                <div className="space-y-6 animate-in fade-in duration-700 text-left flex flex-col h-full max-h-[60vh]">
-                   <div className="p-10 bg-gold/5 rounded-[48px] border border-black text-center shadow-inner group backdrop-blur-md">
+                <div className="space-y-6 animate-in fade-in duration-700 text-left flex flex-col h-full max-h-[100%] overflow-y-auto no-scrollbar">
+                   <div className="p-10 bg-gold/5 rounded-[48px] border border-black text-center shadow-inner group backdrop-blur-md mb-4">
                       <Users className="w-12 h-12 mx-auto mb-5 text-gold" />
                       <h3 className="text-2xl font-black uppercase italic mb-2 text-gold embossed">Multiplayer Lobby</h3>
                       <div className="w-full h-px bg-gold/10 mb-8" />
+                      
+                      <button 
+                        onClick={() => { sounds.playClick(); setSetupMode('multiplayer_settings'); }} 
+                        className="w-full py-8 bg-brand-red text-white font-black uppercase rounded-3xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all text-sm tracking-widest border-2 border-black mb-4 flex items-center justify-center gap-3 group"
+                      >
+                        <SquarePlus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                        CREATE NEW LOBBY
+                      </button>
+                      
+                      <div className="flex items-center gap-4 my-6">
+                        <div className="flex-1 h-px bg-gold/10" />
+                        <span className="text-[9px] font-black text-gold/20 uppercase tracking-[0.4em]">OR JOIN EXISTING</span>
+                        <div className="flex-1 h-px bg-gold/10" />
+                      </div>
+                      
+                      <input 
+                        placeholder="INVITE CODE" 
+                        maxLength={4} 
+                        value={roomId} 
+                        onChange={e => setRoomId(e.target.value.toUpperCase())} 
+                        className="w-full bg-black/20 border-black border rounded-3xl px-8 py-5 font-black uppercase text-center text-gold text-2xl tracking-[0.4em] outline-none focus:ring-4 focus:ring-gold/10 transition-all placeholder:text-white/5" 
+                      />
                    </div>
                 </div>
               )}
@@ -2030,7 +2148,7 @@ export const GameBoard: React.FC<{
                 LOWEST SCORE WINS THE MATCH
               </p>
             ) : setupMode === 'solo' ? (
-                      <button onClick={handleBackToMenu} className="px-14 py-6 bg-gold text-black rounded-full font-black uppercase text-[12px] tracking-[0.5em] shadow-2xl active:scale-95 border-2 border-black">
+                      <button onClick={() => { sounds.playClick(); handleBackToMenu(); }} className="px-14 py-6 bg-gold text-black rounded-full font-black uppercase text-[12px] tracking-[0.5em] shadow-2xl active:scale-95 border-2 border-black">
                  BACK TO MENU
                </button>
             ) : setupMode === 'multiplayer_settings' ? (
@@ -2042,7 +2160,7 @@ export const GameBoard: React.FC<{
                     disabled={!socketConnected}
                     onClick={createRoom} 
                     className={cn(
-                      "flex-1 py-10 bg-gold text-berry-dark font-black uppercase text-2xl rounded-[48px] shadow-[0_35px_100px_rgba(212,175,55,0.4)] hover:bg-gold-light hover:-translate-y-1 active:translate-y-0.5 transition-all relative overflow-hidden border-t-2 border-gold-light/30 embossed",
+                      "flex-1 py-10 bg-gold text-brand-maroon font-black uppercase text-2xl rounded-[48px] shadow-[0_35px_100px_rgba(212,175,55,0.4)] hover:bg-gold-light hover:-translate-y-1 active:translate-y-0.5 transition-all relative overflow-hidden border-t-2 border-gold-light/30 embossed",
                       !socketConnected && "opacity-50 grayscale cursor-not-allowed"
                     )}
                   >
@@ -2054,7 +2172,7 @@ export const GameBoard: React.FC<{
                    {/* Name entry when joining multiplayer via link */}
                    <div className="p-10 bg-black/30 rounded-[48px] border-black border-2 text-left focus-within:border-gold/50 transition-all shadow-3xl group ring-1 ring-white/5 mb-2 relative overflow-hidden">
                      {roomId.length === 4 && (
-                     <div className="absolute top-0 right-10 px-4 py-1 bg-gold text-berry-dark text-[8px] font-black tracking-widest rounded-b-xl shadow-lg animate-bounce">
+                     <div className="absolute top-0 right-10 px-4 py-1 bg-gold text-brand-maroon text-[8px] font-black tracking-widest rounded-b-xl shadow-lg animate-bounce">
                          INVITE CODE: {roomId}
                        </div>
                      )}
@@ -2089,7 +2207,7 @@ export const GameBoard: React.FC<{
                             url.searchParams.delete('room');
                             window.history.replaceState({}, '', url.toString());
                          }} 
-                         className="w-full py-10 bg-gold text-berry-dark font-black uppercase text-2xl rounded-[48px] shadow-[0_35px_100px_rgba(212,175,55,0.4)] hover:bg-gold-light hover:scale-[1.05] active:scale-95 transition-all embossed"
+                         className="w-full py-10 bg-gold text-brand-maroon font-black uppercase text-2xl rounded-[48px] shadow-[0_35px_100px_rgba(212,175,55,0.4)] hover:bg-gold-light hover:scale-[1.05] active:scale-95 transition-all embossed"
                        >
                          JOIN LOBBY
                        </button>
@@ -2181,14 +2299,14 @@ export const GameBoard: React.FC<{
               joinRoomAction(cleanId);
             }} 
             className={cn("px-10 py-6 font-black rounded-[40px] transition-all text-xs uppercase shadow-2xl embossed", 
-                        (!roomId || roomId.length < 4 || !socketConnected) ? "bg-white/5 text-white/5 cursor-not-allowed" : "bg-gold text-berry-dark hover:bg-gold-light hover:scale-105 active:scale-95"
+                        (!roomId || roomId.length < 4 || !socketConnected) ? "bg-white/5 text-white/5 cursor-not-allowed" : "bg-gold text-brand-maroon hover:bg-gold-light hover:scale-105 active:scale-95"
             )}
           >
             JOIN
           </button>
       </div>
       {!socketConnected && (
-                 <p className="text-[10px] text-berry-pink font-black uppercase tracking-widest mt-4">Connecting to server... Please wait.</p>
+                 <p className="text-[10px] text-brand-gold font-black uppercase tracking-widest mt-4">Connecting to server... Please wait.</p>
       )}
     </div>
                     </div>
@@ -2418,7 +2536,7 @@ export const GameBoard: React.FC<{
                         sounds.playClick();
                         joinRoomAction(room.roomId);
                       }}
-                     className="px-8 py-4 bg-gold text-berry-dark font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:scale-110 active:scale-95 transition-all"
+                     className="px-8 py-4 bg-gold text-brand-maroon font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg hover:scale-110 active:scale-95 transition-all"
                     >
                       TAKE SEAT
                     </button>
@@ -2464,17 +2582,49 @@ export const GameBoard: React.FC<{
                   </span>
                </div>
                
-               <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-2">
-                    {handValue === 0 && <Zap className="w-3 h-3 text-gold fill-gold animate-bounce" />}
-                    <span className="text-2xl sm:text-3xl font-black italic tracking-tighter text-gold leading-none embossed">{handValue} POINTS</span>
-                  </div>
-               </div>
+          <div className="flex flex-col items-end">
+             <div className="flex items-center gap-1.5 mb-1 px-3 py-1 bg-black/40 rounded-full border border-white/10 shadow-lg backdrop-blur-md">
+                <span className="text-[10px] font-black text-gold/60 uppercase tracking-widest">SERIES</span>
+                <span className="text-[10px] font-black text-gold uppercase tabular-nums">{gameState.gameCount}/{gameState.maxGames}</span>
+                <span className="text-[10px] font-black text-white/20 mx-0.5">|</span>
+                <span className="text-[10px] font-black text-gold/60 uppercase tracking-widest">ROUND</span>
+                <span className="text-[10px] font-black text-gold uppercase tabular-nums">{gameState.roundCount}</span>
+             </div>
+             <div className="flex items-center gap-2">
+               {handValue === 0 && <Zap className="w-3 h-3 text-gold fill-gold animate-bounce" />}
+               <span className="text-2xl sm:text-3xl font-black italic tracking-tighter text-gold leading-none embossed">{handValue} POINTS</span>
+             </div>
+          </div>
             </div>
          </div>
 
+         {/* Dramatic Combo Effect Overlay */}
+         <AnimatePresence>
+            {showComboEffect && (
+              <motion.div 
+                initial={{ scale: 0, opacity: 0, y: 50, rotate: -10 }}
+                animate={{ scale: 1.5, opacity: 1, y: -20, rotate: 0 }}
+                exit={{ scale: 2, opacity: 0, y: -100 }}
+                className="fixed inset-0 flex items-center justify-center z-[200] pointer-events-none"
+              >
+                <div className="relative">
+                  <motion.div 
+                    animate={{ scale: [1, 1.2, 1] }} 
+                    transition={{ repeat: Infinity, duration: 0.5 }}
+                    className="text-7xl sm:text-9xl font-black italic tracking-tighter text-gold embossed-heavy drop-shadow-[0_20px_40px_rgba(0,0,0,0.8)]"
+                  >
+                    {showComboEffect.type}!
+                  </motion.div>
+                  <div className="absolute -top-10 -right-10 px-4 py-1 bg-brand-red text-white text-xl font-black rounded-lg transform rotate-12 shadow-2xl border-2 border-black">
+                    -{showComboEffect.count} CARDS
+                  </div>
+                </div>
+              </motion.div>
+            )}
+         </AnimatePresence>
+
          {/* Hand Display */}
-         <div className="relative flex items-end justify-center gap-3 sm:gap-4 md:gap-6 h-24 sm:h-32 md:h-40 pb-2 w-full overflow-x-auto no-scrollbar px-6">
+         <div className="relative flex items-end justify-center gap-2 sm:gap-3 h-32 sm:h-40 md:h-48 pb-4 w-full overflow-x-auto no-scrollbar px-6 sm:px-10">
             <LayoutGroup>
               {me.hand.map((card, cIdx) => (
                 <motion.div
@@ -2489,9 +2639,6 @@ export const GameBoard: React.FC<{
                   className="relative group shrink-0"
                   style={{ zIndex: selectedCards.includes(card.id) ? 100 : cIdx }}
                 >
-                  <div className="absolute top-1 right-1 z-20 opacity-40 pointer-events-none">
-                     <Spade className="w-3 h-3 text-brand-gold fill-current" />
-                  </div>
                   <Card 
                     key={`hand-c-${card.id}-${cIdx}`} 
                     card={card} 
@@ -2508,7 +2655,7 @@ export const GameBoard: React.FC<{
                         setSelectedCards(prev => prev.includes(c.id) ? prev.filter(i => i !== c.id) : [...prev, c.id]);
                         Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
                       }} 
-                    className="scale-[0.5] sm:scale-[0.7] md:scale-[0.8] origin-bottom shadow-none transition-none shrink-0" 
+                    className="scale-[0.5] sm:scale-[0.7] md:scale-[0.8] origin-bottom shadow-none transition-none" 
                   />
                   {isTutorial && selectedCards.length === 0 && cIdx === 0 && (
                     <motion.div animate={{ y: [-10, 0, -10] }} transition={{ repeat: Infinity, duration: 1 }} className="absolute -top-12 left-1/2 -translate-x-1/2">
@@ -2549,15 +2696,15 @@ export const GameBoard: React.FC<{
                 </button>
                 <button 
                   onClick={(e) => { e.preventDefault(); handleDeckIt(); }} 
-                  disabled={!isMyTurn || hasDiscardedThisTurn || (!canDeck && handValue > 0) || (setupMode === 'solo' && gameState.currentPlayerIndex > 0)} 
+                  disabled={!isMyTurn || hasDiscardedThisTurn} 
                   className={cn(
                     "flex-1 h-16 sm:h-20 rounded-[28px] sm:rounded-[40px] font-black uppercase text-lg tracking-widest transition-all shadow-xl active:scale-95 border-b-[6px] no-theme",
-                    (!isMyTurn || hasDiscardedThisTurn || (!canDeck && handValue > 0) || (setupMode === 'solo' && gameState.currentPlayerIndex > 0)) 
+                    (!isMyTurn || hasDiscardedThisTurn) 
                       ? "bg-black/40 text-brand-gold/10 border-black grayscale scale-[0.98]" 
                       : "bg-brand-red text-brand-gold border-brand-gold/40 hover:brightness-125 animate-pulse"
                   )}
                 >
-                  <span className="embossed">{ (canDeck || handValue === 0) ? "Deck It!" : "Locked (Rnd 5)"}</span>
+                  <span className="embossed">Deck It!</span>
                 </button>
               </>
             )}
@@ -2607,7 +2754,7 @@ export const GameBoard: React.FC<{
                    initial={{ y: -50, opacity: 0 }} 
                    animate={{ y: 0, opacity: 1 }} 
                    exit={{ y: -20, opacity: 0, filter: 'blur(10px)' }} 
-                   className="px-6 py-3 rounded-[20px] bg-gold text-berry-dark font-black text-lg sm:text-xl uppercase italic border-2 border-black shadow-[0_10px_40px_rgba(0,0,0,0.5)] whitespace-normal break-words leading-none text-center max-w-sm"
+                   className="px-6 py-3 rounded-[20px] bg-gold text-brand-maroon font-black text-lg sm:text-xl uppercase italic border-2 border-black shadow-[0_10px_40px_rgba(0,0,0,0.5)] whitespace-normal break-words leading-none text-center max-w-sm"
                  >
                     {eff.text}
                  </motion.div>
@@ -2632,7 +2779,7 @@ export const GameBoard: React.FC<{
                     >
                       <div className={cn(
                         "px-4 py-1 rounded-full border text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-all duration-500", 
-                        gameState.currentPlayerIndex === idx ? "bg-gold text-berry-dark border-gold ring-4 ring-gold/20" : "bg-black/20 text-gold/20 border-white/5"
+                        gameState.currentPlayerIndex === idx ? "bg-gold text-brand-maroon border-gold ring-4 ring-gold/20" : "bg-black/20 text-gold/20 border-white/5"
                       )}>
                         {p.name}
                       </div>
@@ -2745,6 +2892,7 @@ export const GameBoard: React.FC<{
           </>
           ) : (
             <div className="flex-1 flex items-center justify-center">
+               {renderSetupScreen()}
             </div>
           )}
         </main>
@@ -2810,7 +2958,7 @@ export const GameBoard: React.FC<{
                  </div>
                  <button 
                     onClick={() => setShowRules(false)}
-                    className="w-full py-8 mt-12 bg-gold text-berry-dark font-black uppercase rounded-[40px] shadow-2xl hover:bg-gold-light active:scale-95 transition-all text-sm tracking-widest border-2 border-black embossed"
+                    className="w-full py-8 mt-12 bg-gold text-brand-maroon font-black uppercase rounded-[40px] shadow-2xl hover:bg-gold-light active:scale-95 transition-all text-sm tracking-widest border-2 border-black embossed"
                  >
                     Understand & Play
                  </button>
@@ -2823,7 +2971,7 @@ export const GameBoard: React.FC<{
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[700] bg-black/90 backdrop-blur-3xl flex items-center justify-center p-8">
               <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="max-w-sm w-full bg-brand-maroon border-4 border-gold rounded-[40px] p-10 text-center shadow-[0_0_100px_rgba(212,175,55,0.3)]">
                  <div className="w-20 h-20 bg-gold rounded-full flex items-center justify-center mx-auto mb-6">
-                    <AlertCircle className="w-10 h-10 text-berry-dark" />
+                    <AlertCircle className="w-10 h-10 text-brand-maroon" />
                  </div>
                  <h2 className="text-3xl font-black text-gold uppercase mb-4 italic">JOKER SELECTED!</h2>
                  <p className="text-cream/60 text-sm font-bold uppercase tracking-widest leading-relaxed mb-10">
@@ -2831,7 +2979,7 @@ export const GameBoard: React.FC<{
                  </p>
                  <button 
                    onClick={() => setShowWildCardWarning(false)}
-                   className="w-full py-6 bg-gold text-berry-dark font-black rounded-3xl uppercase tracking-widest shadow-xl hover:bg-gold-light transition-all"
+                   className="w-full py-6 bg-gold text-brand-maroon font-black rounded-3xl uppercase tracking-widest shadow-xl hover:bg-gold-light transition-all"
                  >
                    I UNDERSTAND
                  </button>
@@ -2840,87 +2988,87 @@ export const GameBoard: React.FC<{
          )}
          {setupMode === 'available_rooms' && renderAvailableRoomsScreen()}
          {gameState.status === 'lobby' && renderLobbyScreen()}
-         {showSettings && (
-           <motion.div 
-             key="settings-overlay"
-             initial={{ opacity: 0 }} 
-             animate={{ opacity: 1 }} 
-             className="fixed inset-0 z-[650] bg-black/95 flex items-center justify-center p-6 backdrop-blur-3xl" 
-             onClick={() => setShowSettings(false)}
-           >
-              <div onClick={e => e.stopPropagation()} className="max-w-md w-full bg-brand-maroon border border-white/10 p-10 sm:p-16 rounded-[60px] sm:rounded-[80px] text-center shadow-[0_0_100px_black] backdrop-blur-3xl">
-                 <h3 className="text-3xl font-black mb-12 uppercase italic">Settings</h3>
-                 <div className="grid grid-cols-1 gap-8 mb-12">
-                                        <button onClick={() => { sounds.playClick(); sounds.unlockAudio(); setIsMuted(!isMuted); }} className={cn("p-8 sm:p-12 rounded-[40px] sm:rounded-[50px] border-black border-2 flex flex-col items-center gap-5 transition-all active:scale-95 shadow-xl", isMuted ? "bg-brand-red/10 text-gold/20" : "bg-gold text-brand-maroon")}>{isMuted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}<span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Audio</span></button>
-                 </div>
-
-                     <button 
-                      onClick={handleBackToMenu} 
-                      className="w-full py-6 bg-brand-red text-white font-black uppercase rounded-[32px] border-2 border-black shadow-lg"
-                    >
-                      Back to Menu
-                    </button>
-              </div>
-           </motion.div>
-         )}
-
-        {/* Tutorial Selection Overlay removed */}
-        <AnimatePresence>
-          {showSettings && (
-            <motion.div 
-              key="pro-tips-overlay"
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[620] bg-brand-maroon/98 backdrop-blur-3xl flex items-center justify-center p-6"
-            >
-              <div className="max-xl w-full space-y-8 relative p-10 bg-brand-maroon/60 border-gold border-4 rounded-[48px] backdrop-blur-3xl shadow-[0_0_150px_black] overflow-hidden">
-                <div className="flex justify-between items-center mb-2">
-                   <h2 className="text-5xl font-black italic text-gold uppercase tracking-tighter embossed-gold">PRO TIPS</h2>
+         <AnimatePresence>
+           {showSettings && (
+             <motion.div 
+               key="settings-overlay"
+               initial={{ opacity: 0 }} 
+               animate={{ opacity: 1 }} 
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 z-[650] bg-black/95 flex items-center justify-center p-6 backdrop-blur-3xl" 
+               onClick={() => setShowSettings(false)}
+             >
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  onClick={e => e.stopPropagation()} 
+                  className="max-w-md w-full bg-brand-maroon border-4 border-gold p-10 sm:p-14 rounded-[60px] sm:rounded-[80px] text-center shadow-[0_0_150px_black] backdrop-blur-3xl relative"
+                >
                    <button 
-                    onClick={() => {
-                      sounds.playClick();
-                      setShowProTips(false);
-                    }}
-                    className="bg-gold/10 hover:bg-gold/20 text-gold font-black text-[10px] uppercase tracking-widest px-6 py-2.5 rounded-full border border-gold/30 transition-all shadow-xl"
-                  >
-                    CLOSE
-                  </button>
-                </div>
+                     onClick={() => setShowSettings(false)} 
+                     className="absolute top-8 right-8 p-3 text-gold/40 hover:text-gold transition-colors"
+                   >
+                     <X className="w-8 h-8" />
+                   </button>
 
-                <div className="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2 no-scrollbar">
-                  {PRO_TIPS.map((tip, i) => (
-                    <motion.div 
-                      key={`pro-tip-item-${i}`}
-                      initial={{ x: -20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: i * 0.1 }}
-                      className="p-8 bg-black/40 rounded-[32px] border border-gold/10 shadow-2xl space-y-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center text-gold font-black text-xs">0{i+1}</div>
-                        <h3 className="text-gold font-black uppercase text-lg italic tracking-tight">{tip.title}</h3>
+                   <h3 className="text-4xl font-black mb-14 uppercase italic text-gold embossed-gold">Game Settings</h3>
+                   
+                   <div className="grid grid-cols-1 gap-6 mb-10 text-left">
+                      <div className="p-1 group">
+                         <span className="text-[10px] font-black text-gold/30 uppercase tracking-[0.3em] mb-4 block">AUDIO CONTROLS</span>
+                         <button 
+                           onClick={() => { sounds.playClick(); sounds.unlockAudio(); setIsMuted(!isMuted); }} 
+                           className={cn(
+                             "w-full p-8 rounded-[40px] border-black border-4 flex items-center justify-between transition-all active:scale-95 shadow-2xl", 
+                             isMuted ? "bg-brand-red/10 text-red-500 border-red-500/20" : "bg-gold text-brand-maroon"
+                           )}
+                         >
+                            <div className="flex items-center gap-4">
+                              {isMuted ? <VolumeX className="w-8 h-8" /> : <Volume2 className="w-8 h-8" />}
+                              <span className="text-xl font-black uppercase italic tracking-widest">{isMuted ? 'MUTED' : 'ACTIVE'}</span>
+                            </div>
+                            <div className={cn("w-4 h-4 rounded-full", isMuted ? "bg-red-500 animate-pulse" : "bg-brand-maroon shadow-[0_0_10px_rgba(0,0,0,0.5)]")} />
+                         </button>
                       </div>
-                      <p className="text-white/70 text-sm leading-relaxed font-medium">{tip.text}</p>
-                    </motion.div>
-                  ))}
-                </div>
 
-                    <button 
-                    onClick={() => {
-                        sounds.playClick();
-                        localStorage.setItem('fives_has_visited', 'true');
-                        setHasVisited(true);
-                        setShowProTips(false);
-                    }}
-                    className="w-full py-8 mt-4 bg-gold text-berry-dark font-black uppercase rounded-[32px] shadow-2xl hover:bg-gold-light active:scale-95 transition-all text-sm tracking-widest border-2 border-black"
+                      <div className="p-1 group">
+                         <span className="text-[10px] font-black text-gold/30 uppercase tracking-[0.3em] mb-4 block">GAME ACADEMY</span>
+                         <button 
+                           onClick={() => { sounds.playClick(); setShowTutorial(true); setShowSettings(false); }} 
+                           className="w-full p-8 rounded-[40px] border-black border-4 bg-white/5 text-gold flex items-center justify-between transition-all hover:bg-white/10 active:scale-95 shadow-2xl"
+                         >
+                            <div className="flex items-center gap-4">
+                              <BookOpen className="w-8 h-8" />
+                              <span className="text-xl font-black uppercase italic tracking-widest">HELP & RULES</span>
+                            </div>
+                            <ChevronLeft className="w-6 h-6 rotate-180 opacity-30" />
+                         </button>
+                      </div>
+
+                      <div className="p-1 group">
+                         <span className="text-[10px] font-black text-gold/30 uppercase tracking-[0.3em] mb-4 block">QUIT MATCH</span>
+                         <button 
+                           onClick={() => { sounds.playClick(); handleBackToMenu(); setShowSettings(false); }} 
+                           className="w-full p-8 rounded-[40px] border-black border-4 bg-brand-red/10 text-brand-red flex items-center justify-between transition-all hover:bg-brand-red/20 active:scale-95 shadow-2xl"
+                         >
+                            <div className="flex items-center gap-4">
+                              <Trash2 className="w-8 h-8" />
+                              <span className="text-xl font-black uppercase italic tracking-widest">ABANDON GAME</span>
+                            </div>
+                         </button>
+                      </div>
+                   </div>
+
+                   <button 
+                    onClick={() => setShowSettings(false)} 
+                    className="w-full py-8 bg-gold text-brand-maroon font-black uppercase rounded-[40px] shadow-2xl hover:bg-gold-light active:scale-95 transition-all text-xl tracking-widest border-4 border-black border-b-8"
                   >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    RESUME SURVIVAL
+                  </button>
+                </motion.div>
+             </motion.div>
+           )}
+         </AnimatePresence>
           {gameState.status === 'round_over' && (
             <motion.div key="round_over" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[250] flex items-center justify-center bg-brand-maroon/98 p-4 sm:p-6 text-center">
                <motion.div 

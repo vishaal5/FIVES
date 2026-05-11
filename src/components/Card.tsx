@@ -16,11 +16,7 @@ interface CardProps {
 }
 
 const suitIcons = {
-  hearts: <Heart className="w-6 h-6 text-red-500 fill-current" />,
-  diamonds: <Diamond className="w-6 h-6 text-red-500 fill-current" />,
-  clubs: <Club className="w-6 h-6 text-slate-900 fill-current" />,
-  spades: <Spade className="w-6 h-6 text-slate-900 fill-current" />,
-  joker: <Star className="w-6 h-6 text-purple-600 fill-current" />,
+  joker: <Star className="w-6 h-6 text-brand-gold fill-current" />,
 };
 
 export const Card: React.FC<CardProps> = ({ 
@@ -88,18 +84,15 @@ export const Card: React.FC<CardProps> = ({
           
           <div className="flex flex-col items-start relative z-10">
             <span className={cn(
-              "text-2xl font-black leading-[0.8] tracking-tighter drop-shadow-sm sm:text-3xl",
+              "text-3xl font-black leading-[0.8] tracking-tighter drop-shadow-sm sm:text-4xl",
               (card.rank === 'JK' || isJoker) && "embossed",
               (card.suit === 'hearts' || card.suit === 'diamonds') ? "text-red-600" : (card.suit === 'joker' ? "text-brand-gold" : "text-slate-900")
             )}>
               {card.rank === 'JK' ? (isJoker ? '★' : '🃏') : card.rank}
             </span>
-            <div className="scale-75 origin-left mt-0.5">
-              {suitIcons[card.suit as keyof typeof suitIcons]}
-            </div>
           </div>
           
-          <div className="flex justify-center items-center relative z-10">
+          <div className="flex justify-center items-center relative z-10 flex-1">
             {isJoker || card.suit === 'joker' ? (
               <motion.div 
                 animate={{ scale: [1, 1.05, 1] }} 
@@ -120,15 +113,12 @@ export const Card: React.FC<CardProps> = ({
 
           <div className="flex flex-col items-end rotate-180 relative z-10">
             <span className={cn(
-              "text-2xl font-black leading-[0.8] tracking-tighter drop-shadow-sm sm:text-3xl",
+              "text-3xl font-black leading-[0.8] tracking-tighter drop-shadow-sm sm:text-4xl",
               (card.rank === 'JK' || isJoker) && "embossed",
               (card.suit === 'hearts' || card.suit === 'diamonds') ? "text-red-600" : (card.suit === 'joker' ? "text-brand-gold" : "text-slate-900")
             )}>
               {card.rank === 'JK' ? (isJoker ? '★' : '🃏') : card.rank}
             </span>
-            <div className="scale-75 origin-left mt-0.5">
-              {suitIcons[card.suit as keyof typeof suitIcons]}
-            </div>
           </div>
         </div>
       ) : (

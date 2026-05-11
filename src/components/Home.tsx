@@ -95,9 +95,9 @@ const Home: React.FC<HomeProps> = ({
              <motion.h2 
                initial={{ y: 20, opacity: 0 }}
                animate={{ y: 0, opacity: 1 }}
-               className="font-display font-black text-[32px] sm:text-[40px] tracking-[-0.04em] uppercase leading-none text-brand-gold embossed text-center italic"
+               className="font-display font-black text-[24px] sm:text-[32px] tracking-[-0.04em] uppercase leading-none text-brand-gold embossed text-center italic"
              >
-               SURVIVAL OF <br/> THE LOWEST
+               <WaveText text="SURVIVAL OF" /> <br/> <WaveText text="THE LOWEST" />
              </motion.h2>
              <p className="text-gold-bright font-black text-[12px] uppercase tracking-[0.4em] pt-4 italic break-words text-center embossed">CHOOSE MODE</p>
           </div>
